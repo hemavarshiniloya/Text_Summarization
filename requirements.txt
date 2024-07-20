@@ -8,6 +8,5 @@ PyPDF2
 python-docx
 pandas
 Pillow
-
-
+transformers==4.21.0
 
