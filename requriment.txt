@@ -1,0 +1,10 @@
+streamlit
+txtai
+easyocr
+pandas
+numpy
+Pillow
+requests
+beautifulsoup4
+PyPDF2
+python-docx
