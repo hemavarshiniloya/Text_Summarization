@@ -17,5 +17,5 @@ This project is a Streamlit web application that provides text summarization and
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/your-username/ai-website.git
+   git clone https://github.com/hemavarshiniloya/ai-website.git
    cd ai-website
