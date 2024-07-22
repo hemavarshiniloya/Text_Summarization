@@ -8,9 +8,113 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import os
 import io
+import pytesseract
 from PIL import Image
-import easyocr
-import numpy as np
+from googletrans import Translator  # Use Google Translate API
+
+# Set Tesseract executable path if necessary
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+# List of languages with their ISO 639-1 codes
+languages = {
+    "Afrikaans": "af",
+    "Albanian": "sq",
+    "Amharic": "am",
+    "Arabic": "ar",
+    "Armenian": "hy",
+    "Azerbaijani": "az",
+    "Basque": "eu",
+    "Belarusian": "be",
+    "Bengali": "bn",
+    "Bosnian": "bs",
+    "Bulgarian": "bg",
+    "Catalan": "ca",
+    "Chinese (Simplified)": "zh",
+    "Chinese (Traditional)": "zh-TW",
+    "Croatian": "hr",
+    "Czech": "cs",
+    "Danish": "da",
+    "Dutch": "nl",
+    "English": "en",
+    "Esperanto": "eo",
+    "Estonian": "et",
+    "Finnish": "fi",
+    "French": "fr",
+    "Galician": "gl",
+    "Georgian": "ka",
+    "German": "de",
+    "Greek": "el",
+    "Gujarati": "gu",
+    "Haitian Creole": "ht",
+    "Hausa": "ha",
+    "Hebrew": "he",
+    "Hindi": "hi",
+    "Hungarian": "hu",
+    "Icelandic": "is",
+    "Igbo": "ig",
+    "Indonesian": "id",
+    "Irish": "ga",
+    "Italian": "it",
+    "Japanese": "ja",
+    "Javanese": "jv",
+    "Kannada": "kn",
+    "Kazakh": "kk",
+    "Khmer": "km",
+    "Kinyarwanda": "rw",
+    "Korean": "ko",
+    "Kurdish": "ku",
+    "Kyrgyz": "ky",
+    "Lao": "lo",
+    "Latvian": "lv",
+    "Lithuanian": "lt",
+    "Luxembourgish": "lb",
+    "Macedonian": "mk",
+    "Malagasy": "mg",
+    "Malay": "ms",
+    "Malayalam": "ml",
+    "Maltese": "mt",
+    "Maori": "mi",
+    "Marathi": "mr",
+    "Mongolian": "mn",
+    "Nepali": "ne",
+    "Norwegian": "no",
+    "Pashto": "ps",
+    "Persian": "fa",
+    "Polish": "pl",
+    "Portuguese": "pt",
+    "Punjabi": "pa",
+    "Romanian": "ro",
+    "Russian": "ru",
+    "Samoan": "sm",
+    "Scots Gaelic": "gd",
+    "Serbian": "sr",
+    "Sesotho": "st",
+    "Shona": "sn",
+    "Sindhi": "sd",
+    "Sinhala": "si",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Somali": "so",
+    "Spanish": "es",
+    "Sundanese": "su",
+    "Swahili": "sw",
+    "Swedish": "sv",
+    "Tagalog": "tl",
+    "Tajik": "tg",
+    "Tamil": "ta",
+    "Tatar": "tt",
+    "Telugu": "te",
+    "Thai": "th",
+    "Turkish": "tr",
+    "Ukrainian": "uk",
+    "Urdu": "ur",
+    "Uzbek": "uz",
+    "Vietnamese": "vi",
+    "Welsh": "cy",
+    "Xhosa": "xh",
+    "Yoruba": "yo",
+    "Zulu": "zu"
+}
 
 # Set page configuration
 st.set_page_config(layout="wide")
@@ -21,13 +125,6 @@ def text_summary(text, maxlength=None):
     summary = Summary()
     result = summary(text)
     return result
-
-# Initialize EasyOCR Reader
-@st.cache_resource
-def get_reader():
-    return easyocr.Reader(['en'])
-
-reader = get_reader()
 
 # Function to extract text from URL
 def extract_text_from_url(url):
@@ -78,33 +175,29 @@ def extract_text_from_xml(file):
     text = " ".join([elem.text for elem in root.iter() if elem.text])
     return text
 
-# Function to extract text from Image using EasyOCR
-def extract_text_from_image(image_file):
-    try:
-        # Convert the BytesIO object to a numpy array
-        image = Image.open(image_file)
-        image_np = np.array(image)
-        
-        # Perform OCR
-        result = reader.readtext(image_np)
-        text = "\n".join([text for _, text, _ in result])
-        return text
-    except Exception as e:
-        st.error(f"An error occurred while processing the image: {str(e)}")
-        return None
+# Function to extract text from Image
+def extract_text_from_image(file):
+    image = Image.open(file)
+    text = pytesseract.image_to_string(image)
+    return text
 
 # Function to save summary to history
 def save_summary(summary):
     filename = "summary_history.txt"
-    with open(filename, "a") as f:
+    with open(filename, "a", encoding="utf-8") as f:
         f.write(summary + "\n\n")
 
 # Function to load summary history
 def load_summary_history():
     filename = "summary_history.txt"
     if os.path.exists(filename):
-        with open(filename, "r") as f:
-            return f.read()
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                return f.read()
+        except UnicodeDecodeError:
+            # Fallback if UTF-8 decoding fails
+            with open(filename, "r", encoding="latin1") as f:
+                return f.read()
     return ""
 
 # Function to clear all inputs and outputs
@@ -119,10 +212,11 @@ def clear_all():
 def validate_input(text):
     return bool(text and text.strip())
 
-# Function to translate text (dummy function for illustration)
+# Function to translate text using Google Translate API
 def translate_text(text, target_language):
-    # In a real implementation, integrate with a translation service.
-    return text  # Return the original text for demonstration purposes
+    translator = Translator()
+    translated = translator.translate(text, dest=target_language)
+    return translated.text
 
 # Function to download file
 def download_file(content, filename):
@@ -132,15 +226,16 @@ def download_file(content, filename):
 def main():
     st.title("Summarization App")
     st.sidebar.title("Options")
-    choice = st.sidebar.selectbox("Select your choice", [
-        "Summarize Text", 
-        "Summarize URL", 
-        "Summarize Document", 
-        "Summarize Text from Clipboard",
-        "Summarize Image"
-    ])
+    choice = st.sidebar.selectbox("Select your choice", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard", "Summarize Image"])
 
-    language_code = st.sidebar.selectbox("Select Language", ["en", "es", "fr", "de", "hi", "ja", "zh", "ko"], index=0)
+    # Set English as the default language
+    default_language_code = "en"
+    language_code = st.sidebar.selectbox(
+        "Select Language",
+        list(languages.values()),
+        format_func=lambda x: [k for k, v in languages.items() if v == x][0],
+        index=list(languages.values()).index(default_language_code)
+    )
 
     if choice == "Summarize Text":
         text = st.text_area("Enter Text", "")
@@ -149,7 +244,10 @@ def main():
         if st.button("Summarize"):
             if validate_input(text):
                 summary = text_summary(text, maxlength)
-                translated_summary = translate_text(summary, target_language=language_code)
+                if language_code != default_language_code:
+                    translated_summary = translate_text(summary, target_language=language_code)
+                else:
+                    translated_summary = summary
                 st.write("### Summary")
                 st.write(translated_summary)
                 save_summary(translated_summary)
@@ -163,7 +261,10 @@ def main():
                 text = extract_text_from_url(url)
                 if text:
                     summary = text_summary(text)
-                    translated_summary = translate_text(summary, target_language=language_code)
+                    if language_code != default_language_code:
+                        translated_summary = translate_text(summary, target_language=language_code)
+                    else:
+                        translated_summary = summary
                     st.write("### Summary")
                     st.write(translated_summary)
                     save_summary(translated_summary)
@@ -192,7 +293,10 @@ def main():
 
             if text:
                 summary = text_summary(text)
-                translated_summary = translate_text(summary, target_language=language_code)
+                if language_code != default_language_code:
+                    translated_summary = translate_text(summary, target_language=language_code)
+                else:
+                    translated_summary = summary
                 st.write("### Summary")
                 st.write(translated_summary)
                 save_summary(translated_summary)
@@ -204,20 +308,26 @@ def main():
         if st.button("Summarize Clipboard Text"):
             if validate_input(clipboard_text):
                 summary = text_summary(clipboard_text)
-                translated_summary = translate_text(summary, target_language=language_code)
+                if language_code != default_language_code:
+                    translated_summary = translate_text(summary, target_language=language_code)
+                else:
+                    translated_summary = summary
                 st.write("### Summary")
                 st.write(translated_summary)
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Image":
-        image_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+        uploaded_image = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
 
-        if image_file is not None:
-            text = extract_text_from_image(image_file)
+        if uploaded_image is not None:
+            text = extract_text_from_image(uploaded_image)
             if text:
                 summary = text_summary(text)
-                translated_summary = translate_text(summary, target_language=language_code)
+                if language_code != default_language_code:
+                    translated_summary = translate_text(summary, target_language=language_code)
+                else:
+                    translated_summary = summary
                 st.write("### Summary")
                 st.write(translated_summary)
                 save_summary(translated_summary)
