@@ -6,6 +6,7 @@ PyPDF2
 python-docx
 pandas
 easyocr
+bidi
 lxml
 pytesseract
 Pillow
