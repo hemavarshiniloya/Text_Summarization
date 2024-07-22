@@ -1,5 +1,6 @@
 streamlit
 txtai
+faiss-cpu
 requests
 beautifulsoup4
 PyPDF2
