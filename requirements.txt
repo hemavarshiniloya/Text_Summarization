@@ -9,4 +9,5 @@ python-docx
 easyocr
 bidi
 numpy
+pytesseract pillow
 
