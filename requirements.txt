@@ -1,13 +1,11 @@
-streamlit 
-txtai 
-PyPDF2 
-requests 
+streamlit
+txtai
+requests
 beautifulsoup4
-tf-keras
-googletrans==4.0.0-rc1
+PyPDF2
 python-docx
-easyocr
-bidi
-numpy
-pytesseract pillow
-
+pandas
+lxml
+pytesseract
+Pillow
+googletrans==4.0.0-rc1
