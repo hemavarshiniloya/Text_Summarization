@@ -237,8 +237,6 @@ def download_file(content, filename):
 # Main function
 # Main function
 def main():
-    # Main function
-def main():
     st.title("Summarization App")
     st.sidebar.title("Options")
     choice = st.sidebar.selectbox("Select your choice", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
