@@ -1,5 +1,6 @@
 import streamlit as st
 from txtai.pipeline import Summary
+from transformers import pipeline as hf_pipeline
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -9,49 +10,133 @@ import xml.etree.ElementTree as ET
 import os
 import pytesseract
 from googletrans import Translator  # Use Google Translate API
-
-# Set Tesseract executable path if necessary
-# Uncomment and set the correct path if you are running locally
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+from textblob import TextBlob  # For sentiment analysis
+import re
+import time
+from PIL import Image
 
 # List of languages with their ISO 639-1 codes
 languages = {
-    "Afrikaans": "af", "Albanian": "sq", "Amharic": "am", "Arabic": "ar",
-    "Armenian": "hy", "Azerbaijani": "az", "Basque": "eu", "Belarusian": "be",
-    "Bengali": "bn", "Bosnian": "bs", "Bulgarian": "bg", "Catalan": "ca",
-    "Chinese (Simplified)": "zh", "Chinese (Traditional)": "zh-TW", "Croatian": "hr",
-    "Czech": "cs", "Danish": "da", "Dutch": "nl", "English": "en",
-    "Esperanto": "eo", "Estonian": "et", "Finnish": "fi", "French": "fr",
-    "Galician": "gl", "Georgian": "ka", "German": "de", "Greek": "el",
-    "Gujarati": "gu", "Haitian Creole": "ht", "Hausa": "ha", "Hebrew": "he",
-    "Hindi": "hi", "Hungarian": "hu", "Icelandic": "is", "Igbo": "ig",
-    "Indonesian": "id", "Irish": "ga", "Italian": "it", "Japanese": "ja",
-    "Javanese": "jv", "Kannada": "kn", "Kazakh": "kk", "Khmer": "km",
-    "Kinyarwanda": "rw", "Korean": "ko", "Kurdish": "ku", "Kyrgyz": "ky",
-    "Lao": "lo", "Latvian": "lv", "Lithuanian": "lt", "Luxembourgish": "lb",
-    "Macedonian": "mk", "Malagasy": "mg", "Malay": "ms", "Malayalam": "ml",
-    "Maltese": "mt", "Maori": "mi", "Marathi": "mr", "Mongolian": "mn",
-    "Nepali": "ne", "Norwegian": "no", "Pashto": "ps", "Persian": "fa",
-    "Polish": "pl", "Portuguese": "pt", "Punjabi": "pa", "Romanian": "ro",
-    "Russian": "ru", "Samoan": "sm", "Scots Gaelic": "gd", "Serbian": "sr",
-    "Sesotho": "st", "Shona": "sn", "Sindhi": "sd", "Sinhala": "si",
-    "Slovak": "sk", "Slovenian": "sl", "Somali": "so", "Spanish": "es",
-    "Sundanese": "su", "Swahili": "sw", "Swedish": "sv", "Tagalog": "tl",
-    "Tajik": "tg", "Tamil": "ta", "Tatar": "tt", "Telugu": "te",
-    "Thai": "th", "Turkish": "tr", "Ukrainian": "uk", "Urdu": "ur",
-    "Uzbek": "uz", "Vietnamese": "vi", "Welsh": "cy", "Xhosa": "xh",
-    "Yoruba": "yo", "Zulu": "zu"
+    "English": "en", 
+    "Afrikaans": "af",
+    "Albanian": "sq",
+    "Amharic": "am",
+    "Arabic": "ar",
+    "Armenian": "hy",
+    "Azerbaijani": "az",
+    "Basque": "eu",
+    "Belarusian": "be",
+    "Bengali": "bn",
+    "Bosnian": "bs",
+    "Bulgarian": "bg",
+    "Catalan": "ca",
+    "Chinese (Simplified)": "zh",
+    "Chinese (Traditional)": "zh-TW",
+    "Croatian": "hr",
+    "Czech": "cs",
+    "Danish": "da",
+    "Dutch": "nl",
+    "Esperanto": "eo",
+    "Estonian": "et",
+    "Finnish": "fi",
+    "French": "fr",
+    "Galician": "gl",
+    "Georgian": "ka",
+    "German": "de",
+    "Greek": "el",
+    "Gujarati": "gu",
+    "Haitian Creole": "ht",
+    "Hausa": "ha",
+    "Hebrew": "he",
+    "Hindi": "hi",
+    "Hungarian": "hu",
+    "Icelandic": "is",
+    "Igbo": "ig",
+    "Indonesian": "id",
+    "Irish": "ga",
+    "Italian": "it",
+    "Japanese": "ja",
+    "Javanese": "jv",
+    "Kannada": "kn",
+    "Kazakh": "kk",
+    "Khmer": "km",
+    "Kinyarwanda": "rw",
+    "Korean": "ko",
+    "Kurdish": "ku",
+    "Kyrgyz": "ky",
+    "Lao": "lo",
+    "Latvian": "lv",
+    "Lithuanian": "lt",
+    "Luxembourgish": "lb",
+    "Macedonian": "mk",
+    "Malagasy": "mg",
+    "Malay": "ms",
+    "Malayalam": "ml",
+    "Maltese": "mt",
+    "Maori": "mi",
+    "Marathi": "mr",
+    "Mongolian": "mn",
+    "Nepali": "ne",
+    "Norwegian": "no",
+    "Pashto": "ps",
+    "Persian": "fa",
+    "Polish": "pl",
+    "Portuguese": "pt",
+    "Punjabi": "pa",
+    "Romanian": "ro",
+    "Russian": "ru",
+    "Samoan": "sm",
+    "Scots Gaelic": "gd",
+    "Serbian": "sr",
+    "Sesotho": "st",
+    "Shona": "sn",
+    "Sindhi": "sd",
+    "Sinhala": "si",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Somali": "so",
+    "Spanish": "es",
+    "Sundanese": "su",
+    "Swahili": "sw",
+    "Swedish": "sv",
+    "Tagalog": "tl",
+    "Tajik": "tg",
+    "Tamil": "ta",
+    "Tatar": "tt",
+    "Telugu": "te",
+    "Thai": "th",
+    "Turkish": "tr",
+    "Ukrainian": "uk",
+    "Urdu": "ur",
+    "Uzbek": "uz",
+    "Vietnamese": "vi",
+    "Welsh": "cy",
+    "Xhosa": "xh",
+    "Yoruba": "yo",
+    "Zulu": "zu"
 }
 
 # Set page configuration
 st.set_page_config(layout="wide")
 
 # Initialize text summarizer
-@st.cache_resource
 def text_summary(text, maxlength=None):
     summary = Summary()
     result = summary(text)
     return result
+
+# Initialize sentiment analyzer
+def sentiment_analysis(text):
+    sentiment_pipeline = hf_pipeline("sentiment-analysis")
+    result = sentiment_pipeline(text)
+    return result
+
+# Function to preprocess text
+def preprocess_text(text):
+    # Remove extra whitespace and special characters
+    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'[^\w\s]', '', text)
+    return text.strip()
 
 # Function to extract text from URL
 def extract_text_from_url(url):
@@ -100,6 +185,12 @@ def extract_text_from_xml(file):
     tree = ET.parse(file)
     root = tree.getroot()
     text = " ".join([elem.text for elem in root.iter() if elem.text])
+    return text
+
+# Function to extract text from Image
+def extract_text_from_image(file):
+    image = Image.open(file)
+    text = pytesseract.image_to_string(image)
     return text
 
 # Function to save summary to history
@@ -164,13 +255,19 @@ def main():
 
         if st.button("Summarize"):
             if validate_input(text):
+                st.write("### Processing...")
+                time.sleep(1)  # Simulate processing time
+                text = preprocess_text(text)
                 summary = text_summary(text, maxlength)
                 if language_code != default_language_code:
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
+                sentiment = sentiment_analysis(text)
                 st.write("### Summary")
                 st.write(translated_summary)
+                st.write("### Sentiment Analysis")
+                st.write(sentiment)
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
@@ -179,47 +276,64 @@ def main():
 
         if st.button("Summarize URL"):
             if validate_input(url):
+                st.write("### Processing...")
+                time.sleep(1)  # Simulate processing time
                 text = extract_text_from_url(url)
                 if text:
+                    text = preprocess_text(text)
                     summary = text_summary(text)
                     if language_code != default_language_code:
                         translated_summary = translate_text(summary, target_language=language_code)
                     else:
                         translated_summary = summary
+                    sentiment = sentiment_analysis(text)
                     st.write("### Summary")
                     st.write(translated_summary)
+                    st.write("### Sentiment Analysis")
+                    st.write(sentiment)
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Document":
-        uploaded_file = st.file_uploader("Choose a file", type=["pdf", "docx", "txt", "html", "csv", "xml"])
+        uploaded_files = st.file_uploader("Choose files", type=["pdf", "docx", "txt", "html", "csv", "xml"], accept_multiple_files=True)
 
-        if uploaded_file is not None:
-            file_type = uploaded_file.type
-            if file_type == "application/pdf":
-                text = extract_text_from_pdf(uploaded_file)
-            elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                text = extract_text_from_docx(uploaded_file)
-            elif file_type == "text/plain":
-                text = extract_text_from_txt(uploaded_file)
-            elif file_type == "text/html":
-                text = extract_text_from_html(uploaded_file)
-            elif file_type == "text/csv":
-                text = extract_text_from_csv(uploaded_file)
-            elif file_type == "application/xml":
-                text = extract_text_from_xml(uploaded_file)
-            else:
-                st.error("Unsupported file type.")
-                text = None
+        if uploaded_files:
+            all_texts = ""
+            for uploaded_file in uploaded_files:
+                file_type = uploaded_file.type
+                if file_type == "application/pdf":
+                    text = extract_text_from_pdf(uploaded_file)
+                elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    text = extract_text_from_docx(uploaded_file)
+                elif file_type == "text/plain":
+                    text = extract_text_from_txt(uploaded_file)
+                elif file_type == "text/html":
+                    text = extract_text_from_html(uploaded_file)
+                elif file_type == "text/csv":
+                    text = extract_text_from_csv(uploaded_file)
+                elif file_type == "application/xml":
+                    text = extract_text_from_xml(uploaded_file)
+                else:
+                    st.error("Unsupported file type.")
+                    continue
 
-            if text:
-                summary = text_summary(text)
+                if text:
+                    all_texts += text + "\n"
+
+            if all_texts:
+                st.write("### Processing...")
+                time.sleep(1)  # Simulate processing time
+                all_texts = preprocess_text(all_texts)
+                summary = text_summary(all_texts)
                 if language_code != default_language_code:
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
+                sentiment = sentiment_analysis(all_texts)
                 st.write("### Summary")
                 st.write(translated_summary)
+                st.write("### Sentiment Analysis")
+                st.write(sentiment)
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
@@ -228,13 +342,19 @@ def main():
 
         if st.button("Summarize Clipboard Text"):
             if validate_input(clipboard_text):
+                st.write("### Processing...")
+                time.sleep(1)  # Simulate processing time
+                clipboard_text = preprocess_text(clipboard_text)
                 summary = text_summary(clipboard_text)
                 if language_code != default_language_code:
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
+                sentiment = sentiment_analysis(clipboard_text)
                 st.write("### Summary")
                 st.write(translated_summary)
+                st.write("### Sentiment Analysis")
+                st.write(sentiment)
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
