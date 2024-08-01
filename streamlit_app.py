@@ -14,6 +14,8 @@ from textblob import TextBlob  # For sentiment analysis
 import re
 import time
 from PIL import Image
+from gtts import gTTS
+import io
 
 # List of languages with their ISO 639-1 codes
 languages = {
@@ -233,6 +235,13 @@ def translate_text(text, target_language):
     translated = translator.translate(text, dest=target_language)
     return translated.text
 
+# Function to convert text to speech
+def text_to_speech(text):
+    tts = gTTS(text, lang='en')
+    audio_bytes = io.BytesIO()
+    tts.write_to_fp(audio_bytes)
+    audio_bytes.seek(0)
+    return audio_bytes
 
 # Function to download file
 def download_file(content, filename):
