@@ -12,10 +12,6 @@ import pytesseract
 from googletrans import Translator  # Use Google Translate API
 from textblob import TextBlob  # For sentiment analysis
 import re
-import time
-from PIL import Image
-from gtts import gTTS
-import io
 
 # List of languages with their ISO 639-1 codes
 languages = {
@@ -235,14 +231,6 @@ def translate_text(text, target_language):
     translated = translator.translate(text, dest=target_language)
     return translated.text
 
-# Function to convert text to speech
-def text_to_speech(text):
-    tts = gTTS(text, lang='en')
-    audio_bytes = io.BytesIO()
-    tts.write_to_fp(audio_bytes)
-    audio_bytes.seek(0)
-    return audio_bytes
-
 # Function to download file
 def download_file(content, filename):
     st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
@@ -295,11 +283,6 @@ def main():
                     st.write("### Summary")
                     st.write(translated_summary)
 
-                    # Convert summary to speech
-                    if st.button("Convert Summary to Speech"):
-                        audio = text_to_speech(translated_summary)
-                        st.audio(audio, format="audio/mp3")
-
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
 
@@ -326,11 +309,6 @@ def main():
 
                         st.write("### Summary")
                         st.write(translated_summary)
-
-                        # Convert summary to speech
-                        if st.button("Convert Summary to Speech"):
-                            audio = text_to_speech(translated_summary)
-                            st.audio(audio, format="audio/mp3")
 
                         save_summary(translated_summary)
                         download_file(translated_summary, "summary.txt")
@@ -379,11 +357,6 @@ def main():
                     st.write("### Summary")
                     st.write(translated_summary)
 
-                    # Convert summary to speech
-                    if st.button("Convert Summary to Speech"):
-                        audio = text_to_speech(translated_summary)
-                        st.audio(audio, format="audio/mp3")
-
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
 
@@ -408,11 +381,6 @@ def main():
 
                     st.write("### Summary")
                     st.write(translated_summary)
-
-                    # Convert summary to speech
-                    if st.button("Convert Summary to Speech"):
-                        audio = text_to_speech(translated_summary)
-                        st.audio(audio, format="audio/mp3")
 
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
