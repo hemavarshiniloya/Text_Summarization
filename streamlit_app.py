@@ -237,6 +237,8 @@ def download_file(content, filename):
 # Main function
 # Main function
 def main():
+    # Main function
+def main():
     st.title("Summarization App")
     st.sidebar.title("Options")
     choice = st.sidebar.selectbox("Select your choice", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
@@ -265,11 +267,16 @@ def main():
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
-                st.write("### Summary")
-                st.write(translated_summary)
-                st.write("### Sentiment Analysis")
-                st.write(f"Label: {sentiment[0]['label']}")
-                st.write(f"Score: {sentiment[0]['score']:.2f}")
+                
+                # Create two columns for side-by-side layout
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.write("### Sentiment Score")
+                    st.write(f"Score: {sentiment[0]['score']:.2f}")
+                with col2:
+                    st.write("### Summary")
+                    st.write(translated_summary)
+
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
@@ -289,11 +296,16 @@ def main():
                         translated_summary = translate_text(summary, target_language=language_code)
                     else:
                         translated_summary = summary
-                    st.write("### Summary")
-                    st.write(translated_summary)
-                    st.write("### Sentiment Analysis")
-                    st.write(f"Label: {sentiment[0]['label']}")
-                    st.write(f"Score: {sentiment[0]['score']:.2f}")
+
+                    # Create two columns for side-by-side layout
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        st.write("### Sentiment Score")
+                        st.write(f"Score: {sentiment[0]['score']:.2f}")
+                    with col2:
+                        st.write("### Summary")
+                        st.write(translated_summary)
+
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
 
@@ -333,11 +345,16 @@ def main():
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
-                st.write("### Summary")
-                st.write(translated_summary)
-                st.write("### Sentiment Analysis")
-                st.write(f"Label: {sentiment[0]['label']}")
-                st.write(f"Score: {sentiment[0]['score']:.2f}")
+
+                # Create two columns for side-by-side layout
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.write("### Sentiment Score")
+                    st.write(f"Score: {sentiment[0]['score']:.2f}")
+                with col2:
+                    st.write("### Summary")
+                    st.write(translated_summary)
+
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
@@ -355,11 +372,16 @@ def main():
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
-                st.write("### Summary")
-                st.write(translated_summary)
-                st.write("### Sentiment Analysis")
-                st.write(f"Label: {sentiment[0]['label']}")
-                st.write(f"Score: {sentiment[0]['score']:.2f}")
+
+                # Create two columns for side-by-side layout
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.write("### Sentiment Score")
+                    st.write(f"Score: {sentiment[0]['score']:.2f}")
+                with col2:
+                    st.write("### Summary")
+                    st.write(translated_summary)
+
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
