@@ -236,6 +236,7 @@ def download_file(content, filename):
 
 # Main function
 # Main function
+# Main function
 def main():
     st.title("Summarization App")
     st.sidebar.title("Options")
@@ -250,15 +251,25 @@ def main():
         index=list(languages.values()).index(default_language_code)
     )
 
+    # Define session state variables for clearing inputs
+    if 'text' not in st.session_state:
+        st.session_state.text = ""
+    if 'url' not in st.session_state:
+        st.session_state.url = ""
+    if 'clipboard_text' not in st.session_state:
+        st.session_state.clipboard_text = ""
+    if 'uploaded_files' not in st.session_state:
+        st.session_state.uploaded_files = []
+
     if choice == "Summarize Text":
-        text = st.text_area("Enter Text", "")
+        st.session_state.text = st.text_area("Enter Text", st.session_state.text)
         maxlength = st.slider("Maximum Summary Length", min_value=50, max_value=1000, value=200)
 
         if st.button("Summarize"):
-            if validate_input(text):
+            if validate_input(st.session_state.text):
                 st.write("### Processing...")
                 time.sleep(1)  # Simulate processing time
-                text = preprocess_text(text)
+                text = preprocess_text(st.session_state.text)
                 summary = text_summary(text, maxlength)
                 sentiment = sentiment_analysis(text)
                 if language_code != default_language_code:
@@ -279,13 +290,13 @@ def main():
                 download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize URL":
-        url = st.text_input("Enter URL", "")
+        st.session_state.url = st.text_input("Enter URL", st.session_state.url)
 
         if st.button("Summarize URL"):
-            if validate_input(url):
+            if validate_input(st.session_state.url):
                 st.write("### Processing...")
                 time.sleep(1)  # Simulate processing time
-                text = extract_text_from_url(url)
+                text = extract_text_from_url(st.session_state.url)
                 if text:
                     text = preprocess_text(text)
                     summary = text_summary(text)
@@ -308,11 +319,11 @@ def main():
                     download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Document":
-        uploaded_files = st.file_uploader("Choose files", type=["pdf", "docx", "txt", "html", "csv", "xml"], accept_multiple_files=True)
+        st.session_state.uploaded_files = st.file_uploader("Choose files", type=["pdf", "docx", "txt", "html", "csv", "xml"], accept_multiple_files=True)
 
-        if uploaded_files:
+        if st.session_state.uploaded_files:
             all_texts = ""
-            for uploaded_file in uploaded_files:
+            for uploaded_file in st.session_state.uploaded_files:
                 file_type = uploaded_file.type
                 if file_type == "application/pdf":
                     text = extract_text_from_pdf(uploaded_file)
@@ -357,13 +368,13 @@ def main():
                 download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Text from Clipboard":
-        clipboard_text = st.text_area("Paste text from clipboard", "")
+        st.session_state.clipboard_text = st.text_area("Paste text from clipboard", st.session_state.clipboard_text)
 
         if st.button("Summarize Clipboard Text"):
-            if validate_input(clipboard_text):
+            if validate_input(st.session_state.clipboard_text):
                 st.write("### Processing...")
                 time.sleep(1)  # Simulate processing time
-                clipboard_text = preprocess_text(clipboard_text)
+                clipboard_text = preprocess_text(st.session_state.clipboard_text)
                 summary = text_summary(clipboard_text)
                 sentiment = sentiment_analysis(clipboard_text)
                 if language_code != default_language_code:
@@ -383,13 +394,23 @@ def main():
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
-    st.sidebar.button("Clear All", on_click=clear_all)
+    st.sidebar.button("Clear Input", on_click=lambda: clear_input(choice))
     st.sidebar.button("Clear Summary History", on_click=lambda: os.remove("summary_history.txt") if os.path.exists("summary_history.txt") else None)
 
     # Display summary history
     st.write("### Summary History")
     history = load_summary_history()
     st.text_area("Previously Summarized Texts", history, height=300)
+
+def clear_input(choice):
+    if choice == "Summarize Text":
+        st.session_state.text = ""
+    elif choice == "Summarize URL":
+        st.session_state.url = ""
+    elif choice == "Summarize Document":
+        st.session_state.uploaded_files = []
+    elif choice == "Summarize Text from Clipboard":
+        st.session_state.clipboard_text = ""
 
 if __name__ == "__main__":
     main()
