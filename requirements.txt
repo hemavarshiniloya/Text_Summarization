@@ -13,3 +13,6 @@ pytesseract
 Pillow
 googletrans==4.0.0-rc1
 textblob
+transformers
+gtts==2.3.0
+
