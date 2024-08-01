@@ -14,6 +14,8 @@ from textblob import TextBlob  # For sentiment analysis
 import re
 import time
 from PIL import Image
+from gtts import gTTS
+import io
 
 # List of languages with their ISO 639-1 codes
 languages = {
@@ -212,13 +214,16 @@ def load_summary_history():
                 return f.read()
     return ""
 
-# Function to clear all inputs and outputs
-def clear_all():
-    st.session_state.clear()
-    # Clear summary history file
-    history_file = "summary_history.txt"
-    if os.path.exists(history_file):
-        os.remove(history_file)
+# Function to clear input fields based on choice
+def clear_input(choice):
+    if choice == "Summarize Text":
+        st.session_state.text = ""
+    elif choice == "Summarize URL":
+        st.session_state.url = ""
+    elif choice == "Summarize Document":
+        st.session_state.uploaded_files = []
+    elif choice == "Summarize Text from Clipboard":
+        st.session_state.clipboard_text = ""
 
 # Function to validate input
 def validate_input(text):
@@ -229,6 +234,14 @@ def translate_text(text, target_language):
     translator = Translator()
     translated = translator.translate(text, dest=target_language)
     return translated.text
+
+# Function to convert text to speech
+def text_to_speech(text):
+    tts = gTTS(text, lang='en')
+    audio_bytes = io.BytesIO()
+    tts.write_to_fp(audio_bytes)
+    audio_bytes.seek(0)
+    return audio_bytes
 
 # Function to download file
 def download_file(content, filename):
@@ -259,49 +272,22 @@ def main():
     if 'uploaded_files' not in st.session_state:
         st.session_state.uploaded_files = []
 
+    # Handle each choice
     if choice == "Summarize Text":
         st.session_state.text = st.text_area("Enter Text", st.session_state.text)
         maxlength = st.slider("Maximum Summary Length", min_value=50, max_value=1000, value=200)
 
         if st.button("Summarize"):
             if validate_input(st.session_state.text):
-                st.write("### Processing...")
-                time.sleep(1)  # Simulate processing time
-                text = preprocess_text(st.session_state.text)
-                summary = text_summary(text, maxlength)
-                sentiment = sentiment_analysis(text)
-                if language_code != default_language_code:
-                    translated_summary = translate_text(summary, target_language=language_code)
-                else:
-                    translated_summary = summary
-                
-                # Create two columns for side-by-side layout
-                st.write("### Sentiment Analysis")
-                st.write(f"Score: {sentiment[0]['score']:.2f}")
-
-                st.write("### Summary")
-                st.write(translated_summary)
-
-                save_summary(translated_summary)
-                download_file(translated_summary, "summary.txt")
-
-    elif choice == "Summarize URL":
-        st.session_state.url = st.text_input("Enter URL", st.session_state.url)
-
-        if st.button("Summarize URL"):
-            if validate_input(st.session_state.url):
-                st.write("### Processing...")
-                time.sleep(1)  # Simulate processing time
-                text = extract_text_from_url(st.session_state.url)
-                if text:
-                    text = preprocess_text(text)
-                    summary = text_summary(text)
+                with st.spinner("Processing..."):
+                    text = preprocess_text(st.session_state.text)
+                    summary = text_summary(text, maxlength)
                     sentiment = sentiment_analysis(text)
                     if language_code != default_language_code:
                         translated_summary = translate_text(summary, target_language=language_code)
                     else:
                         translated_summary = summary
-
+                    
                     # Display sentiment analysis and summary
                     st.write("### Sentiment Analysis")
                     st.write(f"Score: {sentiment[0]['score']:.2f}")
@@ -309,15 +295,53 @@ def main():
                     st.write("### Summary")
                     st.write(translated_summary)
 
+                    # Convert summary to speech
+                    if st.button("Convert Summary to Speech"):
+                        audio = text_to_speech(translated_summary)
+                        st.audio(audio, format="audio/mp3")
+
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
 
-    elif choice == "Summarize Document":
-        st.session_state.uploaded_files = st.file_uploader("Choose files", type=["pdf", "docx", "txt", "html", "csv", "xml"], accept_multiple_files=True)
+    elif choice == "Summarize URL":
+        url = st.text_input("Enter URL", st.session_state.url)
+        st.session_state.url = url
 
-        if st.session_state.uploaded_files:
+        if st.button("Summarize URL"):
+            if validate_input(url):
+                with st.spinner("Processing..."):
+                    text = extract_text_from_url(url)
+                    if text:
+                        text = preprocess_text(text)
+                        summary = text_summary(text)
+                        sentiment = sentiment_analysis(text)
+                        if language_code != default_language_code:
+                            translated_summary = translate_text(summary, target_language=language_code)
+                        else:
+                            translated_summary = summary
+
+                        # Display sentiment analysis and summary
+                        st.write("### Sentiment Analysis")
+                        st.write(f"Score: {sentiment[0]['score']:.2f}")
+
+                        st.write("### Summary")
+                        st.write(translated_summary)
+
+                        # Convert summary to speech
+                        if st.button("Convert Summary to Speech"):
+                            audio = text_to_speech(translated_summary)
+                            st.audio(audio, format="audio/mp3")
+
+                        save_summary(translated_summary)
+                        download_file(translated_summary, "summary.txt")
+
+    elif choice == "Summarize Document":
+        uploaded_files = st.file_uploader("Choose files", type=["pdf", "docx", "txt", "html", "csv", "xml"], accept_multiple_files=True)
+        st.session_state.uploaded_files = uploaded_files
+
+        if uploaded_files:
             all_texts = ""
-            for uploaded_file in st.session_state.uploaded_files:
+            for uploaded_file in uploaded_files:
                 file_type = uploaded_file.type
                 if file_type == "application/pdf":
                     text = extract_text_from_pdf(uploaded_file)
@@ -339,50 +363,59 @@ def main():
                     all_texts += text + "\n"
 
             if all_texts:
-                st.write("### Processing...")
-                time.sleep(1)  # Simulate processing time
-                all_texts = preprocess_text(all_texts)
-                summary = text_summary(all_texts)
-                sentiment = sentiment_analysis(all_texts)
-                if language_code != default_language_code:
-                    translated_summary = translate_text(summary, target_language=language_code)
-                else:
-                    translated_summary = summary
+                with st.spinner("Processing..."):
+                    all_texts = preprocess_text(all_texts)
+                    summary = text_summary(all_texts)
+                    sentiment = sentiment_analysis(all_texts)
+                    if language_code != default_language_code:
+                        translated_summary = translate_text(summary, target_language=language_code)
+                    else:
+                        translated_summary = summary
 
-                # Display sentiment analysis and summary
-                st.write("### Sentiment Analysis")
-                st.write(f"Score: {sentiment[0]['score']:.2f}")
+                    # Display sentiment analysis and summary
+                    st.write("### Sentiment Analysis")
+                    st.write(f"Score: {sentiment[0]['score']:.2f}")
 
-                st.write("### Summary")
-                st.write(translated_summary)
+                    st.write("### Summary")
+                    st.write(translated_summary)
 
-                save_summary(translated_summary)
-                download_file(translated_summary, "summary.txt")
+                    # Convert summary to speech
+                    if st.button("Convert Summary to Speech"):
+                        audio = text_to_speech(translated_summary)
+                        st.audio(audio, format="audio/mp3")
+
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Paste text from clipboard", st.session_state.clipboard_text)
+        clipboard_text = st.text_area("Paste text from clipboard", st.session_state.clipboard_text)
+        st.session_state.clipboard_text = clipboard_text
 
         if st.button("Summarize Clipboard Text"):
-            if validate_input(st.session_state.clipboard_text):
-                st.write("### Processing...")
-                time.sleep(1)  # Simulate processing time
-                clipboard_text = preprocess_text(st.session_state.clipboard_text)
-                summary = text_summary(clipboard_text)
-                sentiment = sentiment_analysis(clipboard_text)
-                if language_code != default_language_code:
-                    translated_summary = translate_text(summary, target_language=language_code)
-                else:
-                    translated_summary = summary
+            if validate_input(clipboard_text):
+                with st.spinner("Processing..."):
+                    clipboard_text = preprocess_text(clipboard_text)
+                    summary = text_summary(clipboard_text)
+                    sentiment = sentiment_analysis(clipboard_text)
+                    if language_code != default_language_code:
+                        translated_summary = translate_text(summary, target_language=language_code)
+                    else:
+                        translated_summary = summary
 
-                # Display sentiment analysis and summary
-                st.write("### Sentiment Analysis")
-                st.write(f"Score: {sentiment[0]['score']:.2f}")
+                    # Display sentiment analysis and summary
+                    st.write("### Sentiment Analysis")
+                    st.write(f"Score: {sentiment[0]['score']:.2f}")
 
-                st.write("### Summary")
-                st.write(translated_summary)
+                    st.write("### Summary")
+                    st.write(translated_summary)
 
-                save_summary(translated_summary)
-                download_file(translated_summary, "summary.txt")
+                    # Convert summary to speech
+                    if st.button("Convert Summary to Speech"):
+                        audio = text_to_speech(translated_summary)
+                        st.audio(audio, format="audio/mp3")
+
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
 
     st.sidebar.button("Clear Input", on_click=lambda: clear_input(choice))
     st.sidebar.button("Clear Summary History", on_click=lambda: os.remove("summary_history.txt") if os.path.exists("summary_history.txt") else None)
@@ -391,16 +424,6 @@ def main():
     st.write("### Summary History")
     history = load_summary_history()
     st.text_area("Previously Summarized Texts", history, height=300)
-
-def clear_input(choice):
-    if choice == "Summarize Text":
-        st.session_state.text = ""
-    elif choice == "Summarize URL":
-        st.session_state.url = ""
-    elif choice == "Summarize Document":
-        st.session_state.uploaded_files = []
-    elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = ""
 
 if __name__ == "__main__":
     main()
