@@ -235,6 +235,7 @@ def download_file(content, filename):
     st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
 
 # Main function
+# Main function
 def main():
     st.title("Summarization App")
     st.sidebar.title("Options")
@@ -259,12 +260,16 @@ def main():
                 time.sleep(1)  # Simulate processing time
                 text = preprocess_text(text)
                 summary = text_summary(text, maxlength)
+                sentiment = sentiment_analysis(text)
                 if language_code != default_language_code:
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
                 st.write("### Summary")
                 st.write(translated_summary)
+                st.write("### Sentiment Analysis")
+                st.write(f"Label: {sentiment[0]['label']}")
+                st.write(f"Score: {sentiment[0]['score']:.2f}")
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
@@ -279,12 +284,16 @@ def main():
                 if text:
                     text = preprocess_text(text)
                     summary = text_summary(text)
+                    sentiment = sentiment_analysis(text)
                     if language_code != default_language_code:
                         translated_summary = translate_text(summary, target_language=language_code)
                     else:
                         translated_summary = summary
                     st.write("### Summary")
                     st.write(translated_summary)
+                    st.write("### Sentiment Analysis")
+                    st.write(f"Label: {sentiment[0]['label']}")
+                    st.write(f"Score: {sentiment[0]['score']:.2f}")
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
 
@@ -319,12 +328,16 @@ def main():
                 time.sleep(1)  # Simulate processing time
                 all_texts = preprocess_text(all_texts)
                 summary = text_summary(all_texts)
+                sentiment = sentiment_analysis(all_texts)
                 if language_code != default_language_code:
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
                 st.write("### Summary")
                 st.write(translated_summary)
+                st.write("### Sentiment Analysis")
+                st.write(f"Label: {sentiment[0]['label']}")
+                st.write(f"Score: {sentiment[0]['score']:.2f}")
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
@@ -337,12 +350,16 @@ def main():
                 time.sleep(1)  # Simulate processing time
                 clipboard_text = preprocess_text(clipboard_text)
                 summary = text_summary(clipboard_text)
+                sentiment = sentiment_analysis(clipboard_text)
                 if language_code != default_language_code:
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
                 st.write("### Summary")
                 st.write(translated_summary)
+                st.write("### Sentiment Analysis")
+                st.write(f"Label: {sentiment[0]['label']}")
+                st.write(f"Score: {sentiment[0]['score']:.2f}")
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
