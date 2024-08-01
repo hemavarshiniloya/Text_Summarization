@@ -7,113 +7,40 @@ from docx import Document
 import pandas as pd
 import xml.etree.ElementTree as ET
 import os
-import io
 import pytesseract
-from PIL import Image
 from googletrans import Translator  # Use Google Translate API
 
 # Set Tesseract executable path if necessary
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# Uncomment and set the correct path if you are running locally
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # List of languages with their ISO 639-1 codes
 languages = {
-    "Afrikaans": "af",
-    "Albanian": "sq",
-    "Amharic": "am",
-    "Arabic": "ar",
-    "Armenian": "hy",
-    "Azerbaijani": "az",
-    "Basque": "eu",
-    "Belarusian": "be",
-    "Bengali": "bn",
-    "Bosnian": "bs",
-    "Bulgarian": "bg",
-    "Catalan": "ca",
-    "Chinese (Simplified)": "zh",
-    "Chinese (Traditional)": "zh-TW",
-    "Croatian": "hr",
-    "Czech": "cs",
-    "Danish": "da",
-    "Dutch": "nl",
-    "English": "en",
-    "Esperanto": "eo",
-    "Estonian": "et",
-    "Finnish": "fi",
-    "French": "fr",
-    "Galician": "gl",
-    "Georgian": "ka",
-    "German": "de",
-    "Greek": "el",
-    "Gujarati": "gu",
-    "Haitian Creole": "ht",
-    "Hausa": "ha",
-    "Hebrew": "he",
-    "Hindi": "hi",
-    "Hungarian": "hu",
-    "Icelandic": "is",
-    "Igbo": "ig",
-    "Indonesian": "id",
-    "Irish": "ga",
-    "Italian": "it",
-    "Japanese": "ja",
-    "Javanese": "jv",
-    "Kannada": "kn",
-    "Kazakh": "kk",
-    "Khmer": "km",
-    "Kinyarwanda": "rw",
-    "Korean": "ko",
-    "Kurdish": "ku",
-    "Kyrgyz": "ky",
-    "Lao": "lo",
-    "Latvian": "lv",
-    "Lithuanian": "lt",
-    "Luxembourgish": "lb",
-    "Macedonian": "mk",
-    "Malagasy": "mg",
-    "Malay": "ms",
-    "Malayalam": "ml",
-    "Maltese": "mt",
-    "Maori": "mi",
-    "Marathi": "mr",
-    "Mongolian": "mn",
-    "Nepali": "ne",
-    "Norwegian": "no",
-    "Pashto": "ps",
-    "Persian": "fa",
-    "Polish": "pl",
-    "Portuguese": "pt",
-    "Punjabi": "pa",
-    "Romanian": "ro",
-    "Russian": "ru",
-    "Samoan": "sm",
-    "Scots Gaelic": "gd",
-    "Serbian": "sr",
-    "Sesotho": "st",
-    "Shona": "sn",
-    "Sindhi": "sd",
-    "Sinhala": "si",
-    "Slovak": "sk",
-    "Slovenian": "sl",
-    "Somali": "so",
-    "Spanish": "es",
-    "Sundanese": "su",
-    "Swahili": "sw",
-    "Swedish": "sv",
-    "Tagalog": "tl",
-    "Tajik": "tg",
-    "Tamil": "ta",
-    "Tatar": "tt",
-    "Telugu": "te",
-    "Thai": "th",
-    "Turkish": "tr",
-    "Ukrainian": "uk",
-    "Urdu": "ur",
-    "Uzbek": "uz",
-    "Vietnamese": "vi",
-    "Welsh": "cy",
-    "Xhosa": "xh",
-    "Yoruba": "yo",
-    "Zulu": "zu"
+    "Afrikaans": "af", "Albanian": "sq", "Amharic": "am", "Arabic": "ar",
+    "Armenian": "hy", "Azerbaijani": "az", "Basque": "eu", "Belarusian": "be",
+    "Bengali": "bn", "Bosnian": "bs", "Bulgarian": "bg", "Catalan": "ca",
+    "Chinese (Simplified)": "zh", "Chinese (Traditional)": "zh-TW", "Croatian": "hr",
+    "Czech": "cs", "Danish": "da", "Dutch": "nl", "English": "en",
+    "Esperanto": "eo", "Estonian": "et", "Finnish": "fi", "French": "fr",
+    "Galician": "gl", "Georgian": "ka", "German": "de", "Greek": "el",
+    "Gujarati": "gu", "Haitian Creole": "ht", "Hausa": "ha", "Hebrew": "he",
+    "Hindi": "hi", "Hungarian": "hu", "Icelandic": "is", "Igbo": "ig",
+    "Indonesian": "id", "Irish": "ga", "Italian": "it", "Japanese": "ja",
+    "Javanese": "jv", "Kannada": "kn", "Kazakh": "kk", "Khmer": "km",
+    "Kinyarwanda": "rw", "Korean": "ko", "Kurdish": "ku", "Kyrgyz": "ky",
+    "Lao": "lo", "Latvian": "lv", "Lithuanian": "lt", "Luxembourgish": "lb",
+    "Macedonian": "mk", "Malagasy": "mg", "Malay": "ms", "Malayalam": "ml",
+    "Maltese": "mt", "Maori": "mi", "Marathi": "mr", "Mongolian": "mn",
+    "Nepali": "ne", "Norwegian": "no", "Pashto": "ps", "Persian": "fa",
+    "Polish": "pl", "Portuguese": "pt", "Punjabi": "pa", "Romanian": "ro",
+    "Russian": "ru", "Samoan": "sm", "Scots Gaelic": "gd", "Serbian": "sr",
+    "Sesotho": "st", "Shona": "sn", "Sindhi": "sd", "Sinhala": "si",
+    "Slovak": "sk", "Slovenian": "sl", "Somali": "so", "Spanish": "es",
+    "Sundanese": "su", "Swahili": "sw", "Swedish": "sv", "Tagalog": "tl",
+    "Tajik": "tg", "Tamil": "ta", "Tatar": "tt", "Telugu": "te",
+    "Thai": "th", "Turkish": "tr", "Ukrainian": "uk", "Urdu": "ur",
+    "Uzbek": "uz", "Vietnamese": "vi", "Welsh": "cy", "Xhosa": "xh",
+    "Yoruba": "yo", "Zulu": "zu"
 }
 
 # Set page configuration
@@ -175,12 +102,6 @@ def extract_text_from_xml(file):
     text = " ".join([elem.text for elem in root.iter() if elem.text])
     return text
 
-# Function to extract text from Image
-def extract_text_from_image(file):
-    image = Image.open(file)
-    text = pytesseract.image_to_string(image)
-    return text
-
 # Function to save summary to history
 def save_summary(summary):
     filename = "summary_history.txt"
@@ -226,7 +147,7 @@ def download_file(content, filename):
 def main():
     st.title("Summarization App")
     st.sidebar.title("Options")
-    choice = st.sidebar.selectbox("Select your choice", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard", "Summarize Image"])
+    choice = st.sidebar.selectbox("Select your choice", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
 
     # Set English as the default language
     default_language_code = "en"
@@ -308,22 +229,6 @@ def main():
         if st.button("Summarize Clipboard Text"):
             if validate_input(clipboard_text):
                 summary = text_summary(clipboard_text)
-                if language_code != default_language_code:
-                    translated_summary = translate_text(summary, target_language=language_code)
-                else:
-                    translated_summary = summary
-                st.write("### Summary")
-                st.write(translated_summary)
-                save_summary(translated_summary)
-                download_file(translated_summary, "summary.txt")
-
-    elif choice == "Summarize Image":
-        uploaded_image = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
-
-        if uploaded_image is not None:
-            text = extract_text_from_image(uploaded_image)
-            if text:
-                summary = text_summary(text)
                 if language_code != default_language_code:
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
