@@ -263,11 +263,8 @@ def main():
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
-                sentiment = sentiment_analysis(text)
                 st.write("### Summary")
                 st.write(translated_summary)
-                st.write("### Sentiment Analysis")
-                st.write(sentiment)
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
@@ -286,11 +283,8 @@ def main():
                         translated_summary = translate_text(summary, target_language=language_code)
                     else:
                         translated_summary = summary
-                    sentiment = sentiment_analysis(text)
                     st.write("### Summary")
                     st.write(translated_summary)
-                    st.write("### Sentiment Analysis")
-                    st.write(sentiment)
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
 
@@ -329,11 +323,8 @@ def main():
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
-                sentiment = sentiment_analysis(all_texts)
                 st.write("### Summary")
                 st.write(translated_summary)
-                st.write("### Sentiment Analysis")
-                st.write(sentiment)
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
@@ -350,11 +341,8 @@ def main():
                     translated_summary = translate_text(summary, target_language=language_code)
                 else:
                     translated_summary = summary
-                sentiment = sentiment_analysis(clipboard_text)
                 st.write("### Summary")
                 st.write(translated_summary)
-                st.write("### Sentiment Analysis")
-                st.write(sentiment)
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
 
