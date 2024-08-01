@@ -235,8 +235,6 @@ def download_file(content, filename):
     st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
 
 # Main function
-# Main function
-# Main function
 def main():
     st.title("Summarization App")
     st.sidebar.title("Options")
@@ -278,13 +276,11 @@ def main():
                     translated_summary = summary
                 
                 # Create two columns for side-by-side layout
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    st.write("### Sentiment Score")
-                    st.write(f"Score: {sentiment[0]['score']:.2f}")
-                with col2:
-                    st.write("### Summary")
-                    st.write(translated_summary)
+                st.write("### Sentiment Analysis")
+                st.write(f"Score: {sentiment[0]['score']:.2f}")
+
+                st.write("### Summary")
+                st.write(translated_summary)
 
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
@@ -306,14 +302,12 @@ def main():
                     else:
                         translated_summary = summary
 
-                    # Create two columns for side-by-side layout
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        st.write("### Sentiment Score")
-                        st.write(f"Score: {sentiment[0]['score']:.2f}")
-                    with col2:
-                        st.write("### Summary")
-                        st.write(translated_summary)
+                    # Display sentiment analysis and summary
+                    st.write("### Sentiment Analysis")
+                    st.write(f"Score: {sentiment[0]['score']:.2f}")
+
+                    st.write("### Summary")
+                    st.write(translated_summary)
 
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
@@ -355,14 +349,12 @@ def main():
                 else:
                     translated_summary = summary
 
-                # Create two columns for side-by-side layout
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    st.write("### Sentiment Score")
-                    st.write(f"Score: {sentiment[0]['score']:.2f}")
-                with col2:
-                    st.write("### Summary")
-                    st.write(translated_summary)
+                # Display sentiment analysis and summary
+                st.write("### Sentiment Analysis")
+                st.write(f"Score: {sentiment[0]['score']:.2f}")
+
+                st.write("### Summary")
+                st.write(translated_summary)
 
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
@@ -382,14 +374,12 @@ def main():
                 else:
                     translated_summary = summary
 
-                # Create two columns for side-by-side layout
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    st.write("### Sentiment Score")
-                    st.write(f"Score: {sentiment[0]['score']:.2f}")
-                with col2:
-                    st.write("### Summary")
-                    st.write(translated_summary)
+                # Display sentiment analysis and summary
+                st.write("### Sentiment Analysis")
+                st.write(f"Score: {sentiment[0]['score']:.2f}")
+
+                st.write("### Summary")
+                st.write(translated_summary)
 
                 save_summary(translated_summary)
                 download_file(translated_summary, "summary.txt")
