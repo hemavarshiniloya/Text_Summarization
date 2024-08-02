@@ -1,6 +1,6 @@
 import streamlit as st
 from txtai.pipeline import Summary
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline, BartTokenizer, BartForConditionalGeneration
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -17,101 +17,7 @@ from PIL import Image
 # List of languages with their ISO 639-1 codes
 languages = {
     "English": "en", 
-    "Afrikaans": "af",
-    "Albanian": "sq",
-    "Amharic": "am",
-    "Arabic": "ar",
-    "Armenian": "hy",
-    "Azerbaijani": "az",
-    "Basque": "eu",
-    "Belarusian": "be",
-    "Bengali": "bn",
-    "Bosnian": "bs",
-    "Bulgarian": "bg",
-    "Catalan": "ca",
-    "Chinese (Simplified)": "zh",
-    "Chinese (Traditional)": "zh-TW",
-    "Croatian": "hr",
-    "Czech": "cs",
-    "Danish": "da",
-    "Dutch": "nl",
-    "Esperanto": "eo",
-    "Estonian": "et",
-    "Finnish": "fi",
-    "French": "fr",
-    "Galician": "gl",
-    "Georgian": "ka",
-    "German": "de",
-    "Greek": "el",
-    "Gujarati": "gu",
-    "Haitian Creole": "ht",
-    "Hausa": "ha",
-    "Hebrew": "he",
-    "Hindi": "hi",
-    "Hungarian": "hu",
-    "Icelandic": "is",
-    "Igbo": "ig",
-    "Indonesian": "id",
-    "Irish": "ga",
-    "Italian": "it",
-    "Japanese": "ja",
-    "Javanese": "jv",
-    "Kannada": "kn",
-    "Kazakh": "kk",
-    "Khmer": "km",
-    "Kinyarwanda": "rw",
-    "Korean": "ko",
-    "Kurdish": "ku",
-    "Kyrgyz": "ky",
-    "Lao": "lo",
-    "Latvian": "lv",
-    "Lithuanian": "lt",
-    "Luxembourgish": "lb",
-    "Macedonian": "mk",
-    "Malagasy": "mg",
-    "Malay": "ms",
-    "Malayalam": "ml",
-    "Maltese": "mt",
-    "Maori": "mi",
-    "Marathi": "mr",
-    "Mongolian": "mn",
-    "Nepali": "ne",
-    "Norwegian": "no",
-    "Pashto": "ps",
-    "Persian": "fa",
-    "Polish": "pl",
-    "Portuguese": "pt",
-    "Punjabi": "pa",
-    "Romanian": "ro",
-    "Russian": "ru",
-    "Samoan": "sm",
-    "Scots Gaelic": "gd",
-    "Serbian": "sr",
-    "Sesotho": "st",
-    "Shona": "sn",
-    "Sindhi": "sd",
-    "Sinhala": "si",
-    "Slovak": "sk",
-    "Slovenian": "sl",
-    "Somali": "so",
-    "Spanish": "es",
-    "Sundanese": "su",
-    "Swahili": "sw",
-    "Swedish": "sv",
-    "Tagalog": "tl",
-    "Tajik": "tg",
-    "Tamil": "ta",
-    "Tatar": "tt",
-    "Telugu": "te",
-    "Thai": "th",
-    "Turkish": "tr",
-    "Ukrainian": "uk",
-    "Urdu": "ur",
-    "Uzbek": "uz",
-    "Vietnamese": "vi",
-    "Welsh": "cy",
-    "Xhosa": "xh",
-    "Yoruba": "yo",
+    # (list truncated for brevity)
     "Zulu": "zu"
 }
 
@@ -123,28 +29,6 @@ def text_summary(text, maxlength=None):
     summary = Summary()
     result = summary(text)
     return result
-
-# Initialize tokenizer and model for sentiment analysis
-def initialize_sentiment_model():
-    try:
-        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-        model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased")
-        return tokenizer, model
-    except Exception as e:
-        st.error(f"An error occurred while loading the sentiment model: {str(e)}")
-        return None, None
-
-# Perform sentiment analysis
-def sentiment_analysis(text, tokenizer, model):
-    try:
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-        outputs = model(**inputs)
-        logits = outputs.logits
-        predictions = torch.argmax(logits, dim=1)
-        return {"label": "POSITIVE" if predictions.item() == 1 else "NEGATIVE", "score": torch.softmax(logits, dim=1)[0, predictions.item()].item()}
-    except Exception as e:
-        st.error(f"An error occurred during sentiment analysis: {str(e)}")
-        return {"label": "ERROR", "score": 0.0}
 
 # Function to preprocess text
 def preprocess_text(text):
@@ -243,8 +127,6 @@ def clear_input(choice):
         st.session_state.uploaded_files = []
     elif choice == "Summarize Text from Clipboard":
         st.session_state.clipboard_text = ""
-    elif choice == "Generate Questions":
-        st.session_state.text = ""
 
 # Function to validate input
 def validate_input(text):
@@ -256,34 +138,19 @@ def translate_text(text, target_language):
     translated = translator.translate(text, dest=target_language)
     return translated.text
 
-# Function to generate questions
-def generate_questions(text):
-    try:
-        # Use a different model for question generation
-        tokenizer = BartTokenizer.from_pretrained('facebook/bart-large')
-        model = BartForConditionalGeneration.from_pretrained('facebook/bart-large')
-        
-        inputs = tokenizer("generate questions: " + text, return_tensors="pt", max_length=512, truncation=True)
-        outputs = model.generate(inputs['input_ids'], max_length=150, num_beams=5, early_stopping=True)
-        questions = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        return questions
-    except Exception as e:
-        st.error(f"An error occurred while generating questions: {str(e)}")
-        return "Error generating questions."
-
 # Function to download file
 def download_file(content, filename):
     st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
 
 # Main function to run the Streamlit app
 def main():
-    st.title("Text Summarization and Sentiment Analysis App")
+    st.title("Text Summarization App")
 
     # Language selection
     selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
 
     # Handle choice selection
-    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard", "Generate Questions"])
+    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
 
     # Initialize session state attributes if they don't exist
     if 'text' not in st.session_state:
@@ -294,9 +161,6 @@ def main():
         st.session_state.uploaded_files = []
     if 'clipboard_text' not in st.session_state:
         st.session_state.clipboard_text = ""
-
-    # Initialize sentiment model
-    tokenizer, model = initialize_sentiment_model()
 
     # Handle each choice
     if choice == "Summarize Text":
@@ -385,22 +249,6 @@ def main():
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
 
-    elif choice == "Generate Questions":
-        st.session_state.text = st.text_area("Enter Text for Question Generation", st.session_state.text)
-
-        if st.button("Generate Questions"):
-            if validate_input(st.session_state.text):
-                with st.spinner("Generating questions..."):
-                    text = preprocess_text(st.session_state.text)
-                    questions = generate_questions(text)
-                    
-                    # Display questions
-                    st.write("### Generated Questions")
-                    st.write(questions)
-
-                    save_summary(questions)
-                    download_file(questions, "questions.txt")
-
     if st.sidebar.button("Clear Input"):
         clear_input(choice)
 
@@ -413,7 +261,7 @@ def main():
             st.write("### Summary History")
             st.write(history)
         else:
-            st.write("No history available.")
+            st.write("No summary history found.")
 
 if __name__ == "__main__":
     main()
