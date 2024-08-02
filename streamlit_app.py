@@ -1,6 +1,6 @@
 import streamlit as st
 from txtai.pipeline import Summary
-from transformers import pipeline as hf_pipeline
+from transformers import pipeline 
 from googletrans import Translator
 from textblob import TextBlob
 from bs4 import BeautifulSoup
