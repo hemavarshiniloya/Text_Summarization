@@ -17,6 +17,7 @@ pandas
 requests
 scikit-learn
 rake-nltk
+language-tool-python
 
 
 
