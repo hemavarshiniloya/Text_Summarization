@@ -14,18 +14,139 @@ import re
 import torch
 from PIL import Image
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import language_tool_python
-import spacy
+from textblob import TextBlob
 
-# Load Spacy model for keyword extraction
-nlp = spacy.load("en_core_web_sm")
+# List of languages with their ISO 639-1 codes
+languages = {
+    "English": "en", 
+    "Afrikaans": "af",
+    "Albanian": "sq",
+    "Amharic": "am",
+    "Arabic": "ar",
+    "Armenian": "hy",
+    "Azerbaijani": "az",
+    "Basque": "eu",
+    "Belarusian": "be",
+    "Bengali": "bn",
+    "Bosnian": "bs",
+    "Bulgarian": "bg",
+    "Catalan": "ca",
+    "Chinese (Simplified)": "zh",
+    "Chinese (Traditional)": "zh-TW",
+    "Croatian": "hr",
+    "Czech": "cs",
+    "Danish": "da",
+    "Dutch": "nl",
+    "Esperanto": "eo",
+    "Estonian": "et",
+    "Finnish": "fi",
+    "French": "fr",
+    "Galician": "gl",
+    "Georgian": "ka",
+    "German": "de",
+    "Greek": "el",
+    "Gujarati": "gu",
+    "Haitian Creole": "ht",
+    "Hausa": "ha",
+    "Hebrew": "he",
+    "Hindi": "hi",
+    "Hungarian": "hu",
+    "Icelandic": "is",
+    "Igbo": "ig",
+    "Indonesian": "id",
+    "Irish": "ga",
+    "Italian": "it",
+    "Japanese": "ja",
+    "Javanese": "jv",
+    "Kannada": "kn",
+    "Kazakh": "kk",
+    "Khmer": "km",
+    "Kinyarwanda": "rw",
+    "Korean": "ko",
+    "Kurdish": "ku",
+    "Kyrgyz": "ky",
+    "Lao": "lo",
+    "Latvian": "lv",
+    "Lithuanian": "lt",
+    "Luxembourgish": "lb",
+    "Macedonian": "mk",
+    "Malagasy": "mg",
+    "Malay": "ms",
+    "Malayalam": "ml",
+    "Maltese": "mt",
+    "Maori": "mi",
+    "Marathi": "mr",
+    "Mongolian": "mn",
+    "Nepali": "ne",
+    "Norwegian": "no",
+    "Pashto": "ps",
+    "Persian": "fa",
+    "Polish": "pl",
+    "Portuguese": "pt",
+    "Punjabi": "pa",
+    "Romanian": "ro",
+    "Russian": "ru",
+    "Samoan": "sm",
+    "Scots Gaelic": "gd",
+    "Serbian": "sr",
+    "Sesotho": "st",
+    "Shona": "sn",
+    "Sindhi": "sd",
+    "Sinhala": "si",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Somali": "so",
+    "Spanish": "es",
+    "Sundanese": "su",
+    "Swahili": "sw",
+    "Swedish": "sv",
+    "Tagalog": "tl",
+    "Tajik": "tg",
+    "Tamil": "ta",
+    "Tatar": "tt",
+    "Telugu": "te",
+    "Thai": "th",
+    "Turkish": "tr",
+    "Ukrainian": "uk",
+    "Urdu": "ur",
+    "Uzbek": "uz",
+    "Vietnamese": "vi",
+    "Welsh": "cy",
+    "Xhosa": "xh",
+    "Yoruba": "yo",
+    "Zulu": "zu"
+}
+
+# Set page configuration
+st.set_page_config(layout="wide")
 
 # Initialize text summarizer
 def text_summary(text, maxlength=None):
     summary = Summary()
     result = summary(text)
     return result
+
+# Initialize tokenizer and model for sentiment analysis
+def initialize_sentiment_model():
+    try:
+        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+        model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased")
+        return tokenizer, model
+    except Exception as e:
+        st.error(f"An error occurred while loading the sentiment model: {str(e)}")
+        return None, None
+
+# Perform sentiment analysis
+def sentiment_analysis(text, tokenizer, model):
+    try:
+        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+        outputs = model(**inputs)
+        logits = outputs.logits
+        predictions = torch.argmax(logits, dim=1)
+        return {"label": "POSITIVE" if predictions.item() == 1 else "NEGATIVE", "score": torch.softmax(logits, dim=1)[0, predictions.item()].item()}
+    except Exception as e:
+        st.error(f"An error occurred during sentiment analysis: {str(e)}")
+        return {"label": "ERROR", "score": 0.0}
 
 # Function to preprocess text
 def preprocess_text(text):
@@ -89,42 +210,6 @@ def extract_text_from_image(file):
     text = pytesseract.image_to_string(image)
     return text
 
-# Function to extract text from Screenshot (image)
-def extract_text_from_screenshot(file):
-    return extract_text_from_image(file)
-
-# Function to calculate text similarity
-def calculate_text_similarity(text1, text2):
-    vectorizer = TfidfVectorizer().fit_transform([text1, text2])
-    vectors = vectorizer.toarray()
-    similarity = cosine_similarity([vectors[0]], [vectors[1]])[0][0]
-    return similarity
-
-# Function to classify text
-def classify_text(text, model_name='bert-base-uncased', labels=None):
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name)
-    inputs = tokenizer(text, return_tensors="pt", max_length=512, truncation=True)
-    outputs = model(**inputs)
-    logits = outputs.logits
-    probs = torch.nn.functional.softmax(logits, dim=-1)
-    pred_class = torch.argmax(probs, dim=-1).item()
-    if labels:
-        return labels[pred_class]
-    return pred_class
-
-# Function to extract keywords
-def extract_keywords(text):
-    doc = nlp(text)
-    keywords = [token.text for token in doc if token.is_stop == False and token.is_punct == False]
-    return keywords
-
-# Function to perform grammar and spell check
-def grammar_and_spell_check(text):
-    tool = language_tool_python.LanguageTool('en-US')
-    matches = tool.check(text)
-    return matches
-
 # Function to save summary to history
 def save_summary(summary):
     filename = "summary_history.txt"
@@ -171,173 +256,137 @@ def translate_text(text, target_language):
     translated = translator.translate(text, dest=target_language)
     return translated.text
 
-# Function to generate questions
-def generate_questions(text):
-    try:
-        # Use a different model for question generation
-        tokenizer = BartTokenizer.from_pretrained('facebook/bart-large')
-        model = BartForConditionalGeneration.from_pretrained('facebook/bart-large')
-        
-        inputs = tokenizer("generate questions: " + text, return_tensors="pt", max_length=512, truncation=True)
-        outputs = model.generate(inputs['input_ids'], max_length=150, num_beams=5, early_stopping=True)
-        questions = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        return questions
-    except Exception as e:
-        st.error(f"An error occurred while generating questions: {str(e)}")
-        return "Error generating questions."
-
-# Function to download file
-def download_file(content, filename):
-    st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
-
-# Main function to run the Streamlit app
+# Main function to run the app
 def main():
-    st.title("Text Summarization and Feature Extraction App")
+    st.title("Text Processing App")
 
-    # Language selection
-    selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
+    # Sidebar for navigation
+    st.sidebar.title("Navigation")
+    choice = st.sidebar.radio("Select an option:", ["Summarize Text", "Summarize URL", "Summarize Document", "Extract Text from Image", "Text Similarity", "Keyword Extraction", "Grammar and Spell Check"])
 
-    # Handle choice selection
-    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard", "Generate Questions", "Text Similarity", "Classify Text", "Extract Keywords", "Grammar and Spell Check"])
-
-    if "text" not in st.session_state:
+    if 'text' not in st.session_state:
         st.session_state.text = ""
-    if "url" not in st.session_state:
+    if 'url' not in st.session_state:
         st.session_state.url = ""
-    if "uploaded_files" not in st.session_state:
+    if 'uploaded_files' not in st.session_state:
         st.session_state.uploaded_files = []
-    if "clipboard_text" not in st.session_state:
+    if 'clipboard_text' not in st.session_state:
         st.session_state.clipboard_text = ""
-    if "text2" not in st.session_state:
-        st.session_state.text2 = ""
 
     if choice == "Summarize Text":
+        st.subheader("Summarize Text")
         st.session_state.text = st.text_area("Enter Text", st.session_state.text)
         if st.button("Summarize"):
             if validate_input(st.session_state.text):
-                text = preprocess_text(st.session_state.text)
-                summary = text_summary(text)
-                st.write("Summary:", summary)
+                summary = text_summary(st.session_state.text)
+                st.write("Summary:")
+                st.write(summary)
                 save_summary(summary)
-                download_file(summary, "summary.txt")
             else:
-                st.error("Please enter valid text.")
+                st.error("Please enter some text to summarize.")
 
     elif choice == "Summarize URL":
+        st.subheader("Summarize URL")
         st.session_state.url = st.text_input("Enter URL", st.session_state.url)
         if st.button("Summarize"):
             if validate_input(st.session_state.url):
                 text = extract_text_from_url(st.session_state.url)
                 if text:
-                    summary = text_summary(preprocess_text(text))
-                    st.write("Summary:", summary)
+                    summary = text_summary(text)
+                    st.write("Summary:")
+                    st.write(summary)
                     save_summary(summary)
-                    download_file(summary, "summary.txt")
                 else:
-                    st.error("Unable to extract text from the URL.")
+                    st.error("Failed to extract text from the URL.")
             else:
-                st.error("Please enter a valid URL.")
+                st.error("Please enter a URL to summarize.")
 
     elif choice == "Summarize Document":
-        uploaded_files = st.file_uploader("Upload Document(s)", type=["pdf", "docx", "txt", "html", "csv", "xml", "jpg", "jpeg", "png"], accept_multiple_files=True)
-        st.session_state.uploaded_files = uploaded_files
-        if st.button("Summarize"):
-            if st.session_state.uploaded_files:
-                all_text = ""
-                for uploaded_file in st.session_state.uploaded_files:
-                    if uploaded_file.type == "application/pdf":
-                        all_text += extract_text_from_pdf(uploaded_file)
-                    elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                        all_text += extract_text_from_docx(uploaded_file)
-                    elif uploaded_file.type == "text/plain":
-                        all_text += extract_text_from_txt(uploaded_file)
-                    elif uploaded_file.type == "text/html":
-                        all_text += extract_text_from_html(uploaded_file)
-                    elif uploaded_file.type == "text/csv":
-                        all_text += extract_text_from_csv(uploaded_file)
-                    elif uploaded_file.type == "application/xml":
-                        all_text += extract_text_from_xml(uploaded_file)
-                    elif uploaded_file.type in ["image/jpeg", "image/png"]:
-                        all_text += extract_text_from_image(uploaded_file)
-                if all_text:
-                    summary = text_summary(preprocess_text(all_text))
-                    st.write("Summary:", summary)
-                    save_summary(summary)
-                    download_file(summary, "summary.txt")
+        st.subheader("Summarize Document")
+        uploaded_files = st.file_uploader("Choose a file", type=["txt", "pdf", "docx", "html", "csv", "xml"], accept_multiple_files=True)
+        if uploaded_files:
+            for file in uploaded_files:
+                if file.type == "text/plain":
+                    text = extract_text_from_txt(file)
+                elif file.type == "application/pdf":
+                    text = extract_text_from_pdf(file)
+                elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    text = extract_text_from_docx(file)
+                elif file.type == "text/html":
+                    text = extract_text_from_html(file)
+                elif file.type == "text/csv":
+                    text = extract_text_from_csv(file)
+                elif file.type == "application/xml":
+                    text = extract_text_from_xml(file)
                 else:
-                    st.error("Unable to extract text from the documents.")
-            else:
-                st.error("Please upload at least one document.")
-
-    elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Enter Text from Clipboard", st.session_state.clipboard_text)
-        if st.button("Summarize"):
-            if validate_input(st.session_state.clipboard_text):
-                text = preprocess_text(st.session_state.clipboard_text)
+                    st.error(f"Unsupported file type: {file.type}")
+                    continue
                 summary = text_summary(text)
-                st.write("Summary:", summary)
+                st.write("Summary:")
+                st.write(summary)
                 save_summary(summary)
-                download_file(summary, "summary.txt")
-            else:
-                st.error("Please enter valid text from clipboard.")
 
+    elif choice == "Extract Text from Image":
+        st.subheader("Extract Text from Image")
+        uploaded_image = st.file_uploader("Choose an image file", type=["png", "jpg", "jpeg"])
+        if uploaded_image:
+            text = extract_text_from_image(uploaded_image)
+            st.write("Extracted Text:")
+            st.write(text)
 
     elif choice == "Text Similarity":
-        st.session_state.text = st.text_area("Enter First Text", st.session_state.text)
-        st.session_state.text2 = st.text_area("Enter Second Text", st.session_state.text2)
+        st.subheader("Text Similarity")
+        text1 = st.text_area("Enter the first text")
+        text2 = st.text_area("Enter the second text")
         if st.button("Compare"):
-            if validate_input(st.session_state.text) and validate_input(st.session_state.text2):
-                similarity = calculate_text_similarity(st.session_state.text, st.session_state.text2)
-                st.write(f"Similarity Score: {similarity:.2f}")
+            if validate_input(text1) and validate_input(text2):
+                vectorizer = TfidfVectorizer()
+                tfidf_matrix = vectorizer.fit_transform([text1, text2])
+                similarity = (tfidf_matrix * tfidf_matrix.T).A[0, 1]
+                st.write(f"Similarity Score: {similarity:.4f}")
             else:
-                st.error("Please enter valid texts.")
+                st.error("Please enter both texts to compare.")
 
-    elif choice == "Classify Text":
-        st.session_state.text = st.text_area("Enter Text", st.session_state.text)
-        if st.button("Classify"):
-            if validate_input(st.session_state.text):
-                labels = ["Category 1", "Category 2", "Category 3"]  # Define your categories here
-                classification = classify_text(st.session_state.text, labels=labels)
-                st.write("Classified as:", classification)
-            else:
-                st.error("Please enter valid text.")
-
-    elif choice == "Extract Keywords":
-        st.session_state.text = st.text_area("Enter Text", st.session_state.text)
+    elif choice == "Keyword Extraction":
+        st.subheader("Keyword Extraction")
+        text = st.text_area("Enter Text for Keyword Extraction")
         if st.button("Extract Keywords"):
-            if validate_input(st.session_state.text):
-                keywords = extract_keywords(st.session_state.text)
-                st.write("Keywords:", keywords)
+            if validate_input(text):
+                blob = TextBlob(text)
+                keywords = blob.noun_phrases
+                st.write("Keywords:")
+                st.write(", ".join(keywords))
             else:
-                st.error("Please enter valid text.")
+                st.error("Please enter some text to extract keywords.")
 
     elif choice == "Grammar and Spell Check":
-        st.session_state.text = st.text_area("Enter Text", st.session_state.text)
+        st.subheader("Grammar and Spell Check")
+        text = st.text_area("Enter Text for Grammar and Spell Check")
         if st.button("Check"):
-            if validate_input(st.session_state.text):
-                matches = grammar_and_spell_check(st.session_state.text)
-                if matches:
-                    st.write("Grammar and Spell Check Results:")
-                    for match in matches:
-                        st.write(f"{match.message} (at position {match.offset})")
-                else:
-                    st.write("No issues found.")
+            if validate_input(text):
+                blob = TextBlob(text)
+                corrected_text = blob.correct()
+                st.write("Corrected Text:")
+                st.write(corrected_text)
             else:
-                st.error("Please enter valid text.")
+                st.error("Please enter some text to check.")
 
-    # Clear history
-    if st.sidebar.button("Clear Summary History"):
-        clear_summary_history()
-        st.success("Summary history cleared.")
-
-    # Show history
-    if st.sidebar.checkbox("Show Summary History"):
+    # Footer for history and clear options
+    st.sidebar.subheader("Summary History")
+    if st.sidebar.button("View History"):
         history = load_summary_history()
         if history:
-            st.write("Summary History:")
-            st.text_area("History", history, height=300)
+            st.sidebar.text_area("Summary History", history, height=300)
         else:
-            st.write("No history available.")
+            st.sidebar.write("No history found.")
+
+    if st.sidebar.button("Clear History"):
+        clear_summary_history()
+        st.sidebar.write("Summary history cleared.")
+
+    if st.sidebar.button("Clear Inputs"):
+        clear_input(choice)
+        st.sidebar.write("Inputs cleared.")
 
 if __name__ == "__main__":
     main()
