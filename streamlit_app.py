@@ -1,8 +1,6 @@
 import streamlit as st
 from txtai.pipeline import Summary
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -13,16 +11,13 @@ import os
 import pytesseract
 from googletrans import Translator
 import re
+import torch
 from PIL import Image
-import language_tool_python
-from rake_nltk import Rake
-from textblob import TextBlob
-import nltk
-nltk.download('punkt')
 
 # List of languages with their ISO 639-1 codes
 languages = {
     "English": "en", 
+     
     "Afrikaans": "af",
     "Albanian": "sq",
     "Amharic": "am",
@@ -124,9 +119,11 @@ languages = {
 # Set page configuration
 st.set_page_config(layout="wide")
 
-# Initialize tools
-summarizer = Summary()
-similarity = TfidfVectorizer()
+# Initialize text summarizer
+def text_summary(text, maxlength=None):
+    summary = Summary()
+    result = summary(text)
+    return result
 
 # Function to preprocess text
 def preprocess_text(text):
@@ -225,9 +222,6 @@ def clear_input(choice):
         st.session_state.uploaded_files = []
     elif choice == "Summarize Text from Clipboard":
         st.session_state.clipboard_text = ""
-    elif choice == "Text Similarity Comparison":
-        st.session_state.text1 = ""
-        st.session_state.text2 = ""
 
 # Function to validate input
 def validate_input(text):
@@ -243,35 +237,15 @@ def translate_text(text, target_language):
 def download_file(content, filename):
     st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
 
-# Function to summarize text
-def text_summary(text, maxlength=None):
-    result = summarizer(text)
-    return result
-
-# Function to compare text similarity
-def text_similarity(text1, text2):
-    # Vectorize the texts
-    vectorizer = TfidfVectorizer().fit_transform([text1, text2])
-    vectors = vectorizer.toarray()
-
-    # Calculate cosine similarity
-    cosine_sim = cosine_similarity(vectors)
-    similarity_score = cosine_sim[0][1]  # Get the similarity between the two texts
-
-    return similarity_score
-
 # Main function to run the Streamlit app
 def main():
-    st.title("Text Processing App")
+    st.title("Text Summarization App")
 
     # Language selection
     selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
 
     # Handle choice selection
-    choice = st.sidebar.radio(
-        "Choose an option",
-        ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard", "Text Similarity Comparison"]
-    )
+    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
 
     # Initialize session state attributes if they don't exist
     if 'text' not in st.session_state:
@@ -282,136 +256,93 @@ def main():
         st.session_state.uploaded_files = []
     if 'clipboard_text' not in st.session_state:
         st.session_state.clipboard_text = ""
-    if 'text1' not in st.session_state:
-        st.session_state.text1 = ""
-    if 'text2' not in st.session_state:
-        st.session_state.text2 = ""
 
     # Handle each choice
     if choice == "Summarize Text":
         st.session_state.text = st.text_area("Enter Text", st.session_state.text)
+        maxlength = st.slider("Maximum Summary Length", min_value=50, max_value=1000, value=200)
 
         if st.button("Summarize"):
             if validate_input(st.session_state.text):
-                with st.spinner("Summarizing..."):
-                    summary = text_summary(st.session_state.text)
+                with st.spinner("Processing..."):
+                    text = preprocess_text(st.session_state.text)
+                    summary = text_summary(text, maxlength)
+                    translated_summary = translate_text(summary, languages[selected_language])
+                    
+                    # Display summary
                     st.write("### Summary")
-                    st.write(summary)
+                    st.write(translated_summary)
 
-                    # Translate summary if different language is selected
-                    if selected_language != "English":
-                        with st.spinner("Translating..."):
-                            translated_summary = translate_text(summary, languages[selected_language])
-                            st.write("### Translated Summary")
-                            st.write(translated_summary)
-
-                    # Save summary to history
-                    save_summary(summary)
-            else:
-                st.error("Please enter valid text.")
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize URL":
         st.session_state.url = st.text_input("Enter URL", st.session_state.url)
 
-        if st.button("Summarize"):
+        if st.button("Summarize URL"):
             if validate_input(st.session_state.url):
-                with st.spinner("Extracting and summarizing..."):
+                with st.spinner("Processing..."):
                     text = extract_text_from_url(st.session_state.url)
-                    if text:
-                        summary = text_summary(text)
-                        st.write("### Summary")
-                        st.write(summary)
+                    summary = text_summary(text)
+                    translated_summary = translate_text(summary, languages[selected_language])
+                    
+                    # Display summary
+                    st.write("### Summary")
+                    st.write(translated_summary)
 
-                        # Translate summary if different language is selected
-                        if selected_language != "English":
-                            with st.spinner("Translating..."):
-                                translated_summary = translate_text(summary, languages[selected_language])
-                                st.write("### Translated Summary")
-                                st.write(translated_summary)
-
-                        # Save summary to history
-                        save_summary(summary)
-            else:
-                st.error("Please enter a valid URL.")
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Document":
-        st.session_state.uploaded_files = st.file_uploader("Upload Document", accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Choose a file", accept_multiple_files=True)
+        st.session_state.uploaded_files = uploaded_files
 
-        if st.session_state.uploaded_files:
-            for uploaded_file in st.session_state.uploaded_files:
-                file_type = uploaded_file.type
-                text = ""
+        if st.button("Summarize Document"):
+            if uploaded_files:
+                with st.spinner("Processing..."):
+                    text = ""
+                    for uploaded_file in uploaded_files:
+                        if uploaded_file.type == "application/pdf":
+                            text += extract_text_from_pdf(uploaded_file)
+                        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                            text += extract_text_from_docx(uploaded_file)
+                        elif uploaded_file.type == "text/plain":
+                            text += extract_text_from_txt(uploaded_file)
+                        elif uploaded_file.type == "text/html":
+                            text += extract_text_from_html(uploaded_file)
+                        elif uploaded_file.type == "text/csv":
+                            text += extract_text_from_csv(uploaded_file)
+                        elif uploaded_file.type == "application/xml":
+                            text += extract_text_from_xml(uploaded_file)
+                        elif uploaded_file.type.startswith("image/"):
+                            text += extract_text_from_image(uploaded_file)
+                    
+                    summary = text_summary(text)
+                    translated_summary = translate_text(summary, languages[selected_language])
+                    
+                    # Display summary
+                    st.write("### Summary")
+                    st.write(translated_summary)
 
-                if file_type == "application/pdf":
-                    text = extract_text_from_pdf(uploaded_file)
-                elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                    text = extract_text_from_docx(uploaded_file)
-                elif file_type == "text/plain":
-                    text = extract_text_from_txt(uploaded_file)
-                elif file_type == "text/html":
-                    text = extract_text_from_html(uploaded_file)
-                elif file_type == "text/csv":
-                    text = extract_text_from_csv(uploaded_file)
-                elif file_type == "text/xml":
-                    text = extract_text_from_xml(uploaded_file)
-                elif file_type.startswith("image/"):
-                    text = extract_text_from_image(uploaded_file)
-                else:
-                    st.error(f"Unsupported file type: {file_type}")
-                    continue
-
-                if validate_input(text):
-                    with st.spinner(f"Summarizing {uploaded_file.name}..."):
-                        summary = text_summary(text)
-                        st.write(f"### Summary of {uploaded_file.name}")
-                        st.write(summary)
-
-                        # Translate summary if different language is selected
-                        if selected_language != "English":
-                            with st.spinner("Translating..."):
-                                translated_summary = translate_text(summary, languages[selected_language])
-                                st.write("### Translated Summary")
-                                st.write(translated_summary)
-
-                        # Save summary to history
-                        save_summary(summary)
-                else:
-                    st.error(f"Could not extract valid text from {uploaded_file.name}")
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Paste Text Here", st.session_state.clipboard_text)
+        st.session_state.clipboard_text = st.text_area("Paste Text from Clipboard", st.session_state.clipboard_text)
 
-        if st.button("Summarize"):
+        if st.button("Summarize Clipboard Text"):
             if validate_input(st.session_state.clipboard_text):
-                with st.spinner("Summarizing..."):
-                    summary = text_summary(st.session_state.clipboard_text)
-                    st.write("### Summary")
-                    st.write(summary)
-
-                    # Translate summary if different language is selected
-                    if selected_language != "English":
-                        with st.spinner("Translating..."):
-                            translated_summary = translate_text(summary, languages[selected_language])
-                            st.write("### Translated Summary")
-                            st.write(translated_summary)
-
-                    # Save summary to history
-                    save_summary(summary)
-            else:
-                st.error("Please enter valid text.")
-
-    elif choice == "Text Similarity Comparison":
-        st.session_state.text1 = st.text_area("Enter Text 1", st.session_state.text1)
-        st.session_state.text2 = st.text_area("Enter Text 2", st.session_state.text2)
-
-        if st.button("Compare"):
-            if validate_input(st.session_state.text1) and validate_input(st.session_state.text2):
-                with st.spinner("Calculating similarity..."):
-                    similarity_score = text_similarity(st.session_state.text1, st.session_state.text2)
+                with st.spinner("Processing..."):
+                    text = preprocess_text(st.session_state.clipboard_text)
+                    summary = text_summary(text)
+                    translated_summary = translate_text(summary, languages[selected_language])
                     
-                    # Display similarity score
-                    st.write("### Similarity Score")
-                    st.write(f"The similarity between the texts is {similarity_score:.2f}")
+                    # Display summary
+                    st.write("### Summary")
+                    st.write(translated_summary)
+
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
 
     if st.sidebar.button("Clear Input"):
         clear_input(choice)
