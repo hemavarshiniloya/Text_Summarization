@@ -25,8 +25,15 @@ def text_summary(text, maxlength=None):
 # Initialize sentiment analyzer
 def sentiment_analysis(text):
     sentiment_pipeline = hf_pipeline("sentiment-analysis")
-    result = sentiment_pipeline(text)
-    return result
+    try:
+        # Limit input length to avoid issues with long texts
+        if len(text) > 512:
+            text = text[:512]
+        result = sentiment_pipeline(text)
+        return result
+    except Exception as e:
+        st.error(f"An error occurred during sentiment analysis: {str(e)}")
+        return {"label": "Unknown", "score": 0}
 
 # Function to preprocess text
 def preprocess_text(text):
@@ -192,7 +199,8 @@ def main():
                     
                     # Display sentiment analysis and summary
                     st.write("### Sentiment Analysis")
-                    st.write(f"Score: {sentiment[0]['score']:.2f}")
+                    st.write(f"Label: {sentiment['label']}")
+                    st.write(f"Score: {sentiment['score']:.2f}")
 
                     st.write("### Summary")
                     st.write(translated_summary)
@@ -219,7 +227,8 @@ def main():
 
                         # Display sentiment analysis and summary
                         st.write("### Sentiment Analysis")
-                        st.write(f"Score: {sentiment[0]['score']:.2f}")
+                        st.write(f"Label: {sentiment['label']}")
+                        st.write(f"Score: {sentiment['score']:.2f}")
 
                         st.write("### Summary")
                         st.write(translated_summary)
@@ -228,51 +237,51 @@ def main():
                         download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Document":
-        uploaded_files = st.file_uploader("Choose files", type=["pdf", "docx", "txt", "html", "csv", "xml"], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Choose a file", type=["pdf", "docx", "txt", "html", "csv", "xml", "jpg", "jpeg", "png"], accept_multiple_files=True)
         st.session_state.uploaded_files = uploaded_files
-
-        if uploaded_files:
-            all_texts = ""
-            for uploaded_file in uploaded_files:
-                file_type = uploaded_file.type
-                if file_type == "application/pdf":
-                    text = extract_text_from_pdf(uploaded_file)
-                elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                    text = extract_text_from_docx(uploaded_file)
-                elif file_type == "text/plain":
-                    text = extract_text_from_txt(uploaded_file)
-                elif file_type == "text/html":
-                    text = extract_text_from_html(uploaded_file)
-                elif file_type == "text/csv":
-                    text = extract_text_from_csv(uploaded_file)
-                elif file_type == "application/xml":
-                    text = extract_text_from_xml(uploaded_file)
-                else:
-                    st.error("Unsupported file type.")
-                    continue
-
-                if text:
-                    all_texts += text + "\n"
-
-            if all_texts:
+        
+        if st.button("Summarize Documents"):
+            if uploaded_files:
                 with st.spinner("Processing..."):
-                    all_texts = preprocess_text(all_texts)
-                    summary = text_summary(all_texts)
-                    sentiment = sentiment_analysis(all_texts)
-                    if language_code != "en":
-                        translated_summary = translate_text(summary, target_language=language_code)
-                    else:
-                        translated_summary = summary
+                    all_texts = ""
+                    for uploaded_file in uploaded_files:
+                        if uploaded_file.type == "application/pdf":
+                            text = extract_text_from_pdf(uploaded_file)
+                        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                            text = extract_text_from_docx(uploaded_file)
+                        elif uploaded_file.type == "text/plain":
+                            text = extract_text_from_txt(uploaded_file)
+                        elif uploaded_file.type == "text/html":
+                            text = extract_text_from_html(uploaded_file)
+                        elif uploaded_file.type == "text/csv":
+                            text = extract_text_from_csv(uploaded_file)
+                        elif uploaded_file.type == "application/xml":
+                            text = extract_text_from_xml(uploaded_file)
+                        elif uploaded_file.type in ["image/jpeg", "image/png"]:
+                            text = extract_text_from_image(uploaded_file)
+                        else:
+                            text = ""
+                        
+                        all_texts += preprocess_text(text) + " "
+                    
+                    if all_texts:
+                        summary = text_summary(all_texts)
+                        sentiment = sentiment_analysis(all_texts)
+                        if language_code != "en":
+                            translated_summary = translate_text(summary, target_language=language_code)
+                        else:
+                            translated_summary = summary
 
-                    # Display sentiment analysis and summary
-                    st.write("### Sentiment Analysis")
-                    st.write(f"Score: {sentiment[0]['score']:.2f}")
+                        # Display sentiment analysis and summary
+                        st.write("### Sentiment Analysis")
+                        st.write(f"Label: {sentiment['label']}")
+                        st.write(f"Score: {sentiment['score']:.2f}")
 
-                    st.write("### Summary")
-                    st.write(translated_summary)
+                        st.write("### Summary")
+                        st.write(translated_summary)
 
-                    save_summary(translated_summary)
-                    download_file(translated_summary, "summary.txt")
+                        save_summary(translated_summary)
+                        download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Text from Clipboard":
         clipboard_text = st.text_area("Paste clipboard text here", st.session_state.clipboard_text)
@@ -291,7 +300,8 @@ def main():
 
                     # Display sentiment analysis and summary
                     st.write("### Sentiment Analysis")
-                    st.write(f"Score: {sentiment[0]['score']:.2f}")
+                    st.write(f"Label: {sentiment['label']}")
+                    st.write(f"Score: {sentiment['score']:.2f}")
 
                     st.write("### Summary")
                     st.write(translated_summary)
@@ -309,4 +319,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
