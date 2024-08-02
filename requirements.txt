@@ -18,6 +18,8 @@ requests
 scikit-learn
 rake-nltk
 language-tool-python
+nltk
+
 
 
 
