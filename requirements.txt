@@ -1,6 +1,7 @@
 streamlit
 faiss-cpu
 easyocr
+transformers
 python-bidi
 lxml
 pytesseract
