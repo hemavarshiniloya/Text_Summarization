@@ -1,5 +1,6 @@
 import streamlit as st
 from txtai.pipeline import Summary
+from transformers import pipeline
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -10,127 +11,39 @@ import os
 import pytesseract
 from googletrans import Translator
 import re
-import torch
 from PIL import Image
+
+# Initialize question generator
+def initialize_question_generator():
+    return pipeline("text2text-generation", model="valhalla/t5-small-qa-qg-hl")
 
 # List of languages with their ISO 639-1 codes
 languages = {
     "English": "en", 
-    "Afrikaans": "af",
-    "Albanian": "sq",
-    "Amharic": "am",
-    "Arabic": "ar",
-    "Armenian": "hy",
-    "Azerbaijani": "az",
-    "Basque": "eu",
-    "Belarusian": "be",
-    "Bengali": "bn",
-    "Bosnian": "bs",
-    "Bulgarian": "bg",
-    "Catalan": "ca",
-    "Chinese (Simplified)": "zh",
-    "Chinese (Traditional)": "zh-TW",
-    "Croatian": "hr",
-    "Czech": "cs",
-    "Danish": "da",
-    "Dutch": "nl",
-    "Esperanto": "eo",
-    "Estonian": "et",
-    "Finnish": "fi",
-    "French": "fr",
-    "Galician": "gl",
-    "Georgian": "ka",
-    "German": "de",
-    "Greek": "el",
-    "Gujarati": "gu",
-    "Haitian Creole": "ht",
-    "Hausa": "ha",
-    "Hebrew": "he",
-    "Hindi": "hi",
-    "Hungarian": "hu",
-    "Icelandic": "is",
-    "Igbo": "ig",
-    "Indonesian": "id",
-    "Irish": "ga",
-    "Italian": "it",
-    "Japanese": "ja",
-    "Javanese": "jv",
-    "Kannada": "kn",
-    "Kazakh": "kk",
-    "Khmer": "km",
-    "Kinyarwanda": "rw",
-    "Korean": "ko",
-    "Kurdish": "ku",
-    "Kyrgyz": "ky",
-    "Lao": "lo",
-    "Latvian": "lv",
-    "Lithuanian": "lt",
-    "Luxembourgish": "lb",
-    "Macedonian": "mk",
-    "Malagasy": "mg",
-    "Malay": "ms",
-    "Malayalam": "ml",
-    "Maltese": "mt",
-    "Maori": "mi",
-    "Marathi": "mr",
-    "Mongolian": "mn",
-    "Nepali": "ne",
-    "Norwegian": "no",
-    "Pashto": "ps",
-    "Persian": "fa",
-    "Polish": "pl",
-    "Portuguese": "pt",
-    "Punjabi": "pa",
-    "Romanian": "ro",
-    "Russian": "ru",
-    "Samoan": "sm",
-    "Scots Gaelic": "gd",
-    "Serbian": "sr",
-    "Sesotho": "st",
-    "Shona": "sn",
-    "Sindhi": "sd",
-    "Sinhala": "si",
-    "Slovak": "sk",
-    "Slovenian": "sl",
-    "Somali": "so",
-    "Spanish": "es",
-    "Sundanese": "su",
-    "Swahili": "sw",
-    "Swedish": "sv",
-    "Tagalog": "tl",
-    "Tajik": "tg",
-    "Tamil": "ta",
-    "Tatar": "tt",
-    "Telugu": "te",
-    "Thai": "th",
-    "Turkish": "tr",
-    "Ukrainian": "uk",
-    "Urdu": "ur",
-    "Uzbek": "uz",
-    "Vietnamese": "vi",
-    "Welsh": "cy",
-    "Xhosa": "xh",
-    "Yoruba": "yo",
-    "Zulu": "zu"
+    # Add other languages as needed
 }
 
 # Set page configuration
 st.set_page_config(layout="wide")
 
-# Initialize text summarizer
+# Initialize text summarizer and question generator
 def text_summary(text, maxlength=None):
     summary = Summary()
     result = summary(text)
     return result
 
+def generate_questions(text):
+    question_generator = initialize_question_generator()
+    questions = question_generator(text, max_length=512, num_beams=4, early_stopping=True)
+    return questions[0]['generated_text']
+
 # Function to preprocess text
 def preprocess_text(text):
-    # Remove extra whitespace and special characters
     text = re.sub(r'\s+', ' ', text)
     text = re.sub(r'[^\w\s]', '', text)
     return text.strip()
 
-# Function to extract text from URL
+# Function to extract text from various sources (URL, PDF, DOCX, etc.)
 def extract_text_from_url(url):
     try:
         response = requests.get(url)
@@ -142,7 +55,6 @@ def extract_text_from_url(url):
         st.error(f"An error occurred: {str(e)}")
         return None
 
-# Function to extract text from PDF
 def extract_text_from_pdf(file):
     reader = PdfReader(file)
     text = ""
@@ -150,36 +62,30 @@ def extract_text_from_pdf(file):
         text += page.extract_text() or ""
     return text
 
-# Function to extract text from DOCX
 def extract_text_from_docx(file):
     doc = Document(file)
     text = "\n".join([para.text for para in doc.paragraphs])
     return text
 
-# Function to extract text from TXT
 def extract_text_from_txt(file):
     return file.read().decode("utf-8")
 
-# Function to extract text from HTML
 def extract_text_from_html(file):
     soup = BeautifulSoup(file.read(), "html.parser")
     paragraphs = soup.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6"])
     text = "\n".join([p.get_text() for p in paragraphs])
     return text
 
-# Function to extract text from CSV
 def extract_text_from_csv(file):
     df = pd.read_csv(file)
     return df.to_string()
 
-# Function to extract text from XML
 def extract_text_from_xml(file):
     tree = ET.parse(file)
     root = tree.getroot()
     text = " ".join([elem.text for elem in root.iter() if elem.text])
     return text
 
-# Function to extract text from Image
 def extract_text_from_image(file):
     image = Image.open(file)
     text = pytesseract.image_to_string(image)
@@ -199,7 +105,6 @@ def load_summary_history():
             with open(filename, "r", encoding="utf-8") as f:
                 return f.read()
         except UnicodeDecodeError:
-            # Fallback if UTF-8 decoding fails
             with open(filename, "r", encoding="latin1") as f:
                 return f.read()
     return ""
@@ -237,13 +142,13 @@ def download_file(content, filename):
 
 # Main function to run the Streamlit app
 def main():
-    st.title("Text Summarization App")
+    st.title("Text Summarization and Question Generation App")
 
     # Language selection
     selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
 
     # Handle choice selection
-    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
+    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard", "Generate Questions"])
 
     # Initialize session state attributes if they don't exist
     if 'text' not in st.session_state:
@@ -339,6 +244,22 @@ def main():
 
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
+
+    elif choice == "Generate Questions":
+        st.session_state.text = st.text_area("Enter Text for Question Generation", st.session_state.text)
+
+        if st.button("Generate Questions"):
+            if validate_input(st.session_state.text):
+                with st.spinner("Processing..."):
+                    text = preprocess_text(st.session_state.text)
+                    questions = generate_questions(text)
+                    
+                    # Display questions
+                    st.write("### Generated Questions")
+                    st.write(questions)
+
+                    save_summary(questions)
+                    download_file(questions, "questions.txt")
 
     if st.sidebar.button("Clear Input"):
         clear_input(choice)
