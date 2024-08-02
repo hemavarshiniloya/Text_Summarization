@@ -16,6 +16,7 @@ python-docx
 pandas
 requests
 scikit-learn
+rake-nltk
 
 
 
