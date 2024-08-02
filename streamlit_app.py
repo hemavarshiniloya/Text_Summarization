@@ -252,11 +252,15 @@ def translate_text(text, target_language):
 def download_file(content, filename):
     st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
 
-# Main function
+# Main function to run the Streamlit app
 def main():
-    st.title("Summarization App")
-    st.sidebar.title("Options")
-    choice = st.sidebar.selectbox("Select your choice", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
+    st.title("Text Summarization and Sentiment Analysis App")
+
+    # Language selection
+    selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
+
+    # Handle choice selection
+    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
 
     # Initialize session state attributes if they don't exist
     if 'text' not in st.session_state:
@@ -282,7 +286,7 @@ def main():
                     text = preprocess_text(st.session_state.text)
                     summary = text_summary(text, maxlength)
                     sentiment = sentiment_analysis(text, tokenizer, model)
-                    translated_summary = summary
+                    translated_summary = translate_text(summary, languages[selected_language])
                     
                     # Display sentiment analysis and summary
                     st.write("### Sentiment Analysis")
@@ -303,7 +307,7 @@ def main():
                     text = extract_text_from_url(st.session_state.url)
                     summary = text_summary(text)
                     sentiment = sentiment_analysis(text, tokenizer, model)
-                    translated_summary = summary
+                    translated_summary = translate_text(summary, languages[selected_language])
                     
                     # Display sentiment analysis and summary
                     st.write("### Sentiment Analysis")
@@ -339,7 +343,7 @@ def main():
 
                     summary = text_summary(text)
                     sentiment = sentiment_analysis(text, tokenizer, model)
-                    translated_summary = summary
+                    translated_summary = translate_text(summary, languages[selected_language])
                     
                     # Display sentiment analysis and summary
                     st.write("### Sentiment Analysis")
@@ -360,7 +364,7 @@ def main():
                     text = preprocess_text(st.session_state.clipboard_text)
                     summary = text_summary(text)
                     sentiment = sentiment_analysis(text, tokenizer, model)
-                    translated_summary = summary
+                    translated_summary = translate_text(summary, languages[selected_language])
                     
                     # Display sentiment analysis and summary
                     st.write("### Sentiment Analysis")
