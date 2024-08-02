@@ -9,12 +9,113 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import os
 import pytesseract
-from PIL import Image
-from googletrans import Translator, LANGUAGES
+from googletrans import Translator  # Use Google Translate API
+from textblob import TextBlob  # For sentiment analysis
 import re
 
 # List of languages with their ISO 639-1 codes
-languages = {name.capitalize(): code for name, code in LANGUAGES.items()}
+languages = {
+    "English": "en", 
+    "Afrikaans": "af",
+    "Albanian": "sq",
+    "Amharic": "am",
+    "Arabic": "ar",
+    "Armenian": "hy",
+    "Azerbaijani": "az",
+    "Basque": "eu",
+    "Belarusian": "be",
+    "Bengali": "bn",
+    "Bosnian": "bs",
+    "Bulgarian": "bg",
+    "Catalan": "ca",
+    "Chinese (Simplified)": "zh",
+    "Chinese (Traditional)": "zh-TW",
+    "Croatian": "hr",
+    "Czech": "cs",
+    "Danish": "da",
+    "Dutch": "nl",
+    "Esperanto": "eo",
+    "Estonian": "et",
+    "Finnish": "fi",
+    "French": "fr",
+    "Galician": "gl",
+    "Georgian": "ka",
+    "German": "de",
+    "Greek": "el",
+    "Gujarati": "gu",
+    "Haitian Creole": "ht",
+    "Hausa": "ha",
+    "Hebrew": "he",
+    "Hindi": "hi",
+    "Hungarian": "hu",
+    "Icelandic": "is",
+    "Igbo": "ig",
+    "Indonesian": "id",
+    "Irish": "ga",
+    "Italian": "it",
+    "Japanese": "ja",
+    "Javanese": "jv",
+    "Kannada": "kn",
+    "Kazakh": "kk",
+    "Khmer": "km",
+    "Kinyarwanda": "rw",
+    "Korean": "ko",
+    "Kurdish": "ku",
+    "Kyrgyz": "ky",
+    "Lao": "lo",
+    "Latvian": "lv",
+    "Lithuanian": "lt",
+    "Luxembourgish": "lb",
+    "Macedonian": "mk",
+    "Malagasy": "mg",
+    "Malay": "ms",
+    "Malayalam": "ml",
+    "Maltese": "mt",
+    "Maori": "mi",
+    "Marathi": "mr",
+    "Mongolian": "mn",
+    "Nepali": "ne",
+    "Norwegian": "no",
+    "Pashto": "ps",
+    "Persian": "fa",
+    "Polish": "pl",
+    "Portuguese": "pt",
+    "Punjabi": "pa",
+    "Romanian": "ro",
+    "Russian": "ru",
+    "Samoan": "sm",
+    "Scots Gaelic": "gd",
+    "Serbian": "sr",
+    "Sesotho": "st",
+    "Shona": "sn",
+    "Sindhi": "sd",
+    "Sinhala": "si",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Somali": "so",
+    "Spanish": "es",
+    "Sundanese": "su",
+    "Swahili": "sw",
+    "Swedish": "sv",
+    "Tagalog": "tl",
+    "Tajik": "tg",
+    "Tamil": "ta",
+    "Tatar": "tt",
+    "Telugu": "te",
+    "Thai": "th",
+    "Turkish": "tr",
+    "Ukrainian": "uk",
+    "Urdu": "ur",
+    "Uzbek": "uz",
+    "Vietnamese": "vi",
+    "Welsh": "cy",
+    "Xhosa": "xh",
+    "Yoruba": "yo",
+    "Zulu": "zu"
+}
+
+# Set page configuration
+st.set_page_config(layout="wide")
 
 # Initialize text summarizer
 def text_summary(text, maxlength=None):
@@ -25,18 +126,12 @@ def text_summary(text, maxlength=None):
 # Initialize sentiment analyzer
 def sentiment_analysis(text):
     sentiment_pipeline = hf_pipeline("sentiment-analysis")
-    try:
-        # Limit input length to avoid issues with long texts
-        if len(text) > 512:
-            text = text[:512]
-        result = sentiment_pipeline(text)
-        return result
-    except Exception as e:
-        st.error(f"An error occurred during sentiment analysis: {str(e)}")
-        return {"label": "Unknown", "score": 0}
+    result = sentiment_pipeline(text)
+    return result
 
 # Function to preprocess text
 def preprocess_text(text):
+    # Remove extra whitespace and special characters
     text = re.sub(r'\s+', ' ', text)
     text = re.sub(r'[^\w\s]', '', text)
     return text.strip()
@@ -110,6 +205,7 @@ def load_summary_history():
             with open(filename, "r", encoding="utf-8") as f:
                 return f.read()
         except UnicodeDecodeError:
+            # Fallback if UTF-8 decoding fails
             with open(filename, "r", encoding="latin1") as f:
                 return f.read()
     return ""
@@ -131,13 +227,9 @@ def validate_input(text):
 
 # Function to translate text using Google Translate API
 def translate_text(text, target_language):
-    try:
-        translator = Translator()
-        translated = translator.translate(text, dest=target_language)
-        return translated.text
-    except Exception as e:
-        st.error(f"An error occurred during translation: {str(e)}")
-        return None
+    translator = Translator()
+    translated = translator.translate(text, dest=target_language)
+    return translated.text
 
 # Function to download file
 def download_file(content, filename):
@@ -145,20 +237,19 @@ def download_file(content, filename):
 
 # Main function
 def main():
-    st.set_page_config(layout="wide")
-    
-    # Create sidebar for language selection
-    st.sidebar.title("Language Selection")
+    st.title("Summarization App")
+    st.sidebar.title("Options")
+    choice = st.sidebar.selectbox("Select your choice", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
+
+    # Set English as the default language
+    default_language_code = "en"
     language_code = st.sidebar.selectbox(
         "Select Language",
         list(languages.values()),
-        format_func=lambda code: [lang for lang, lang_code in languages.items() if lang_code == code][0]
+        format_func=lambda x: [k for k, v in languages.items() if v == x][0],
+        index=list(languages.values()).index(default_language_code)
     )
-    
-    st.title("Text Summarization and Translation App")
-    st.sidebar.title("Options")
-    choice = st.sidebar.selectbox("Select your choice", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
-    
+
     # Define session state variables for clearing inputs
     if 'text' not in st.session_state:
         st.session_state.text = ""
@@ -173,18 +264,6 @@ def main():
     if choice == "Summarize Text":
         st.session_state.text = st.text_area("Enter Text", st.session_state.text)
         maxlength = st.slider("Maximum Summary Length", min_value=50, max_value=1000, value=200)
-        
-        # Buttons for clearing input and history
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            if st.button("Clear Input"):
-                clear_input(choice)
-                st.experimental_rerun()
-                
-        with col2:
-            if st.button("Clear History"):
-                os.remove("summary_history.txt") if os.path.exists("summary_history.txt") else None
-                st.experimental_rerun()
 
         if st.button("Summarize"):
             if validate_input(st.session_state.text):
@@ -192,15 +271,14 @@ def main():
                     text = preprocess_text(st.session_state.text)
                     summary = text_summary(text, maxlength)
                     sentiment = sentiment_analysis(text)
-                    if language_code != "en":
+                    if language_code != default_language_code:
                         translated_summary = translate_text(summary, target_language=language_code)
                     else:
                         translated_summary = summary
                     
                     # Display sentiment analysis and summary
                     st.write("### Sentiment Analysis")
-                    st.write(f"Label: {sentiment['label']}")
-                    st.write(f"Score: {sentiment['score']:.2f}")
+                    st.write(f"Score: {sentiment[0]['score']:.2f}")
 
                     st.write("### Summary")
                     st.write(translated_summary)
@@ -211,7 +289,7 @@ def main():
     elif choice == "Summarize URL":
         url = st.text_input("Enter URL", st.session_state.url)
         st.session_state.url = url
-        
+
         if st.button("Summarize URL"):
             if validate_input(url):
                 with st.spinner("Processing..."):
@@ -220,15 +298,14 @@ def main():
                         text = preprocess_text(text)
                         summary = text_summary(text)
                         sentiment = sentiment_analysis(text)
-                        if language_code != "en":
+                        if language_code != default_language_code:
                             translated_summary = translate_text(summary, target_language=language_code)
                         else:
                             translated_summary = summary
 
                         # Display sentiment analysis and summary
                         st.write("### Sentiment Analysis")
-                        st.write(f"Label: {sentiment['label']}")
-                        st.write(f"Score: {sentiment['score']:.2f}")
+                        st.write(f"Score: {sentiment[0]['score']:.2f}")
 
                         st.write("### Summary")
                         st.write(translated_summary)
@@ -237,71 +314,45 @@ def main():
                         download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Document":
-        uploaded_files = st.file_uploader("Choose a file", type=["pdf", "docx", "txt", "html", "csv", "xml", "jpg", "jpeg", "png"], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Choose files", type=["pdf", "docx", "txt", "html", "csv", "xml"], accept_multiple_files=True)
         st.session_state.uploaded_files = uploaded_files
-        
-        if st.button("Summarize Documents"):
-            if uploaded_files:
+
+        if uploaded_files:
+            all_texts = ""
+            for uploaded_file in uploaded_files:
+                file_type = uploaded_file.type
+                if file_type == "application/pdf":
+                    text = extract_text_from_pdf(uploaded_file)
+                elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    text = extract_text_from_docx(uploaded_file)
+                elif file_type == "text/plain":
+                    text = extract_text_from_txt(uploaded_file)
+                elif file_type == "text/html":
+                    text = extract_text_from_html(uploaded_file)
+                elif file_type == "text/csv":
+                    text = extract_text_from_csv(uploaded_file)
+                elif file_type == "application/xml":
+                    text = extract_text_from_xml(uploaded_file)
+                else:
+                    st.error("Unsupported file type.")
+                    continue
+
+                if text:
+                    all_texts += text + "\n"
+
+            if all_texts:
                 with st.spinner("Processing..."):
-                    all_texts = ""
-                    for uploaded_file in uploaded_files:
-                        if uploaded_file.type == "application/pdf":
-                            text = extract_text_from_pdf(uploaded_file)
-                        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                            text = extract_text_from_docx(uploaded_file)
-                        elif uploaded_file.type == "text/plain":
-                            text = extract_text_from_txt(uploaded_file)
-                        elif uploaded_file.type == "text/html":
-                            text = extract_text_from_html(uploaded_file)
-                        elif uploaded_file.type == "text/csv":
-                            text = extract_text_from_csv(uploaded_file)
-                        elif uploaded_file.type == "application/xml":
-                            text = extract_text_from_xml(uploaded_file)
-                        elif uploaded_file.type in ["image/jpeg", "image/png"]:
-                            text = extract_text_from_image(uploaded_file)
-                        else:
-                            text = ""
-                        
-                        all_texts += preprocess_text(text) + " "
-                    
-                    if all_texts:
-                        summary = text_summary(all_texts)
-                        sentiment = sentiment_analysis(all_texts)
-                        if language_code != "en":
-                            translated_summary = translate_text(summary, target_language=language_code)
-                        else:
-                            translated_summary = summary
-
-                        # Display sentiment analysis and summary
-                        st.write("### Sentiment Analysis")
-                        st.write(f"Label: {sentiment['label']}")
-                        st.write(f"Score: {sentiment['score']:.2f}")
-
-                        st.write("### Summary")
-                        st.write(translated_summary)
-
-                        save_summary(translated_summary)
-                        download_file(translated_summary, "summary.txt")
-
-    elif choice == "Summarize Text from Clipboard":
-        clipboard_text = st.text_area("Paste clipboard text here", st.session_state.clipboard_text)
-        st.session_state.clipboard_text = clipboard_text
-
-        if st.button("Summarize Clipboard"):
-            if validate_input(clipboard_text):
-                with st.spinner("Processing..."):
-                    text = preprocess_text(clipboard_text)
-                    summary = text_summary(text)
-                    sentiment = sentiment_analysis(text)
-                    if language_code != "en":
+                    all_texts = preprocess_text(all_texts)
+                    summary = text_summary(all_texts)
+                    sentiment = sentiment_analysis(all_texts)
+                    if language_code != default_language_code:
                         translated_summary = translate_text(summary, target_language=language_code)
                     else:
                         translated_summary = summary
 
                     # Display sentiment analysis and summary
                     st.write("### Sentiment Analysis")
-                    st.write(f"Label: {sentiment['label']}")
-                    st.write(f"Score: {sentiment['score']:.2f}")
+                    st.write(f"Score: {sentiment[0]['score']:.2f}")
 
                     st.write("### Summary")
                     st.write(translated_summary)
@@ -309,13 +360,38 @@ def main():
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
 
+    elif choice == "Summarize Text from Clipboard":
+        clipboard_text = st.text_area("Paste text from clipboard", st.session_state.clipboard_text)
+        st.session_state.clipboard_text = clipboard_text
+
+        if st.button("Summarize Clipboard Text"):
+            if validate_input(clipboard_text):
+                with st.spinner("Processing..."):
+                    clipboard_text = preprocess_text(clipboard_text)
+                    summary = text_summary(clipboard_text)
+                    sentiment = sentiment_analysis(clipboard_text)
+                    if language_code != default_language_code:
+                        translated_summary = translate_text(summary, target_language=language_code)
+                    else:
+                        translated_summary = summary
+
+                    # Display sentiment analysis and summary
+                    st.write("### Sentiment Analysis")
+                    st.write(f"Score: {sentiment[0]['score']:.2f}")
+
+                    st.write("### Summary")
+                    st.write(translated_summary)
+
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
+
+    st.sidebar.button("Clear Input", on_click=lambda: clear_input(choice))
+    st.sidebar.button("Clear Summary History", on_click=lambda: os.remove("summary_history.txt") if os.path.exists("summary_history.txt") else None)
+
     # Display summary history
-    st.subheader("Summary History")
+    st.write("### Summary History")
     history = load_summary_history()
-    if history:
-        st.write(history)
-    else:
-        st.write("No history available.")
+    st.text_area("Previously Summarized Texts", history, height=300)
 
 if __name__ == "__main__":
     main()
