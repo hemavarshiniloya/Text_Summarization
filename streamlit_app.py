@@ -252,6 +252,7 @@ def translate_text(text, target_language):
 def download_file(content, filename):
     st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
 
+# Main function
 def main():
     st.title("Summarization App")
     st.sidebar.title("Options")
