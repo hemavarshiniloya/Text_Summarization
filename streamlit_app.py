@@ -227,6 +227,12 @@ def load_summary_history():
                 return f.read()
     return ""
 
+# Function to clear summary history
+def clear_summary_history():
+    filename = "summary_history.txt"
+    if os.path.exists(filename):
+        os.remove(filename)
+
 # Function to clear input fields based on choice
 def clear_input(choice):
     if choice == "Summarize Text":
@@ -376,8 +382,12 @@ def main():
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
 
-    if st.sidebar.button("Clear"):
+    if st.sidebar.button("Clear Input"):
         clear_input(choice)
+
+    if st.sidebar.button("Clear History"):
+        clear_summary_history()
+        st.sidebar.write("Summary history cleared.")
 
     # Display summary history
     st.sidebar.write("### Summary History")
