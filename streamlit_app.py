@@ -1,8 +1,6 @@
 import streamlit as st
 from txtai.pipeline import Summary
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -15,51 +13,124 @@ from googletrans import Translator
 import re
 import torch
 from PIL import Image
-from rake_nltk import Rake
-import language_tool_python
 
 # List of languages with their ISO 639-1 codes
 languages = {
     "English": "en", 
-    # (list truncated for brevity)
+     
+    "Afrikaans": "af",
+    "Albanian": "sq",
+    "Amharic": "am",
+    "Arabic": "ar",
+    "Armenian": "hy",
+    "Azerbaijani": "az",
+    "Basque": "eu",
+    "Belarusian": "be",
+    "Bengali": "bn",
+    "Bosnian": "bs",
+    "Bulgarian": "bg",
+    "Catalan": "ca",
+    "Chinese (Simplified)": "zh",
+    "Chinese (Traditional)": "zh-TW",
+    "Croatian": "hr",
+    "Czech": "cs",
+    "Danish": "da",
+    "Dutch": "nl",
+    "Esperanto": "eo",
+    "Estonian": "et",
+    "Finnish": "fi",
+    "French": "fr",
+    "Galician": "gl",
+    "Georgian": "ka",
+    "German": "de",
+    "Greek": "el",
+    "Gujarati": "gu",
+    "Haitian Creole": "ht",
+    "Hausa": "ha",
+    "Hebrew": "he",
+    "Hindi": "hi",
+    "Hungarian": "hu",
+    "Icelandic": "is",
+    "Igbo": "ig",
+    "Indonesian": "id",
+    "Irish": "ga",
+    "Italian": "it",
+    "Japanese": "ja",
+    "Javanese": "jv",
+    "Kannada": "kn",
+    "Kazakh": "kk",
+    "Khmer": "km",
+    "Kinyarwanda": "rw",
+    "Korean": "ko",
+    "Kurdish": "ku",
+    "Kyrgyz": "ky",
+    "Lao": "lo",
+    "Latvian": "lv",
+    "Lithuanian": "lt",
+    "Luxembourgish": "lb",
+    "Macedonian": "mk",
+    "Malagasy": "mg",
+    "Malay": "ms",
+    "Malayalam": "ml",
+    "Maltese": "mt",
+    "Maori": "mi",
+    "Marathi": "mr",
+    "Mongolian": "mn",
+    "Nepali": "ne",
+    "Norwegian": "no",
+    "Pashto": "ps",
+    "Persian": "fa",
+    "Polish": "pl",
+    "Portuguese": "pt",
+    "Punjabi": "pa",
+    "Romanian": "ro",
+    "Russian": "ru",
+    "Samoan": "sm",
+    "Scots Gaelic": "gd",
+    "Serbian": "sr",
+    "Sesotho": "st",
+    "Shona": "sn",
+    "Sindhi": "sd",
+    "Sinhala": "si",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Somali": "so",
+    "Spanish": "es",
+    "Sundanese": "su",
+    "Swahili": "sw",
+    "Swedish": "sv",
+    "Tagalog": "tl",
+    "Tajik": "tg",
+    "Tamil": "ta",
+    "Tatar": "tt",
+    "Telugu": "te",
+    "Thai": "th",
+    "Turkish": "tr",
+    "Ukrainian": "uk",
+    "Urdu": "ur",
+    "Uzbek": "uz",
+    "Vietnamese": "vi",
+    "Welsh": "cy",
+    "Xhosa": "xh",
+    "Yoruba": "yo",
+    "Zulu": "zu"
 }
-
-# Initialize tools
-summarizer = Summary()
-tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased")
-classifier = pipeline("text-classification", model=model, tokenizer=tokenizer)
-rake = Rake()
-tool = language_tool_python.LanguageTool('en-US')
 
 # Set page configuration
 st.set_page_config(layout="wide")
 
+# Initialize text summarizer
+def text_summary(text, maxlength=None):
+    summary = Summary()
+    result = summary(text)
+    return result
+
 # Function to preprocess text
 def preprocess_text(text):
+    # Remove extra whitespace and special characters
     text = re.sub(r'\s+', ' ', text)
     text = re.sub(r'[^\w\s]', '', text)
     return text.strip()
-
-# Function to compute text similarity
-def compute_similarity(text1, text2):
-    vectorizer = TfidfVectorizer().fit_transform([text1, text2])
-    vectors = vectorizer.toarray()
-    return cosine_similarity([vectors[0]], [vectors[1]])[0][0]
-
-# Function for text classification
-def classify_text(text):
-    return classifier(text)
-
-# Function for keyword extraction
-def extract_keywords(text):
-    rake.extract_keywords_from_text(text)
-    return rake.get_ranked_phrases()
-
-# Function for grammar and spell check
-def grammar_and_spell_check(text):
-    matches = tool.check(text)
-    return [match.message for match in matches]
 
 # Function to extract text from URL
 def extract_text_from_url(url):
@@ -130,6 +201,7 @@ def load_summary_history():
             with open(filename, "r", encoding="utf-8") as f:
                 return f.read()
         except UnicodeDecodeError:
+            # Fallback if UTF-8 decoding fails
             with open(filename, "r", encoding="latin1") as f:
                 return f.read()
     return ""
@@ -167,17 +239,13 @@ def download_file(content, filename):
 
 # Main function to run the Streamlit app
 def main():
-    st.title("Text Analysis App")
+    st.title("Text Summarization App")
 
     # Language selection
     selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
 
     # Handle choice selection
-    choice = st.sidebar.radio("Choose an option", [
-        "Summarize Text", "Summarize URL", "Summarize Document", 
-        "Summarize Text from Clipboard", "Compare Text Similarity",
-        "Classify Text", "Extract Keywords", "Check Grammar and Spelling"
-    ])
+    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
 
     # Initialize session state attributes if they don't exist
     if 'text' not in st.session_state:
@@ -198,9 +266,10 @@ def main():
             if validate_input(st.session_state.text):
                 with st.spinner("Processing..."):
                     text = preprocess_text(st.session_state.text)
-                    summary = summarizer(text, maxlength)
+                    summary = text_summary(text, maxlength)
                     translated_summary = translate_text(summary, languages[selected_language])
                     
+                    # Display summary
                     st.write("### Summary")
                     st.write(translated_summary)
 
@@ -214,9 +283,10 @@ def main():
             if validate_input(st.session_state.url):
                 with st.spinner("Processing..."):
                     text = extract_text_from_url(st.session_state.url)
-                    summary = summarizer(text)
+                    summary = text_summary(text)
                     translated_summary = translate_text(summary, languages[selected_language])
                     
+                    # Display summary
                     st.write("### Summary")
                     st.write(translated_summary)
 
@@ -247,9 +317,10 @@ def main():
                         elif uploaded_file.type.startswith("image/"):
                             text += extract_text_from_image(uploaded_file)
                     
-                    summary = summarizer(text)
+                    summary = text_summary(text)
                     translated_summary = translate_text(summary, languages[selected_language])
                     
+                    # Display summary
                     st.write("### Summary")
                     st.write(translated_summary)
 
@@ -263,54 +334,15 @@ def main():
             if validate_input(st.session_state.clipboard_text):
                 with st.spinner("Processing..."):
                     text = preprocess_text(st.session_state.clipboard_text)
-                    summary = summarizer(text)
+                    summary = text_summary(text)
                     translated_summary = translate_text(summary, languages[selected_language])
                     
+                    # Display summary
                     st.write("### Summary")
                     st.write(translated_summary)
 
                     save_summary(translated_summary)
                     download_file(translated_summary, "summary.txt")
-
-    elif choice == "Compare Text Similarity":
-        text1 = st.text_area("Enter First Text")
-        text2 = st.text_area("Enter Second Text")
-
-        if st.button("Compare Similarity"):
-            if validate_input(text1) and validate_input(text2):
-                with st.spinner("Processing..."):
-                    similarity = compute_similarity(text1, text2)
-                    st.write(f"### Similarity Score: {similarity:.4f}")
-
-    elif choice == "Classify Text":
-        text = st.text_area("Enter Text for Classification")
-
-        if st.button("Classify Text"):
-            if validate_input(text):
-                with st.spinner("Processing..."):
-                    result = classify_text(text)
-                    st.write("### Classification Result")
-                    st.write(result)
-
-    elif choice == "Extract Keywords":
-        text = st.text_area("Enter Text for Keyword Extraction")
-
-        if st.button("Extract Keywords"):
-            if validate_input(text):
-                with st.spinner("Processing..."):
-                    keywords = extract_keywords(text)
-                    st.write("### Keywords")
-                    st.write(", ".join(keywords))
-
-    elif choice == "Check Grammar and Spelling":
-        text = st.text_area("Enter Text for Grammar and Spell Check")
-
-        if st.button("Check Text"):
-            if validate_input(text):
-                with st.spinner("Processing..."):
-                    issues = grammar_and_spell_check(text)
-                    st.write("### Grammar and Spelling Issues")
-                    st.write("\n".join(issues))
 
     if st.sidebar.button("Clear Input"):
         clear_input(choice)
