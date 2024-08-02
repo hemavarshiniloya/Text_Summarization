@@ -4,7 +4,7 @@ easyocr
 python-bidi
 lxml
 pytesseract
-Pillows
+Pillow
 python-pptx
 txtai
 transformers
@@ -14,7 +14,7 @@ beautifulsoup4
 PyPDF2
 python-docx
 pandas
-pytesseract
 requests
+
 
 
