@@ -1,7 +1,6 @@
 import streamlit as st
 from txtai.pipeline import Summary
 from transformers import pipeline as hf_pipeline
-from PIL import Image
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -10,6 +9,7 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import os
 import pytesseract
+from PIL import Image
 from googletrans import Translator  # Use Google Translate API
 from textblob import TextBlob  # For sentiment analysis
 import re
@@ -124,20 +124,11 @@ def text_summary(text, maxlength=None):
     result = summary(text)
     return result
 
-# Initialize sentiment analyzer with error handling
+# Initialize sentiment analyzer
 def sentiment_analysis(text):
-    try:
-        # Ensure text is not too long
-        max_length = 512  # Adjust if necessary
-        if len(text) > max_length:
-            text = text[:max_length]
-
-        sentiment_pipeline = hf_pipeline("sentiment-analysis")
-        result = sentiment_pipeline(text)
-        return result
-    except Exception as e:
-        st.error(f"An error occurred during sentiment analysis: {str(e)}")
-        return []
+    sentiment_pipeline = hf_pipeline("sentiment-analysis")
+    result = sentiment_pipeline(text)
+    return result
 
 # Function to preprocess text
 def preprocess_text(text):
@@ -231,6 +222,12 @@ def clear_input(choice):
     elif choice == "Summarize Text from Clipboard":
         st.session_state.clipboard_text = ""
 
+# Function to clear summary history
+def clear_summary_history():
+    filename = "summary_history.txt"
+    if os.path.exists(filename):
+        os.remove(filename)
+
 # Function to validate input
 def validate_input(text):
     return bool(text and text.strip())
@@ -261,90 +258,95 @@ def main():
     )
 
     if choice == "Summarize Text":
-        st.session_state.text = st.text_area("Enter Text")
+        text = st.text_area("Enter text here:", height=300)
         if st.button("Summarize"):
-            if validate_input(st.session_state.text):
-                preprocessed_text = preprocess_text(st.session_state.text)
-                summary = text_summary(preprocessed_text)
-                translated_summary = translate_text(summary, language_code)
-                st.subheader("Summary")
-                st.write(translated_summary)
-                save_summary(translated_summary)
-                download_file(translated_summary, "summary.txt")
+            if validate_input(text):
+                st.session_state.text = text
+                summary = text_summary(text)
+                st.write("Summary:")
+                st.write(summary)
+                save_summary(summary)
             else:
-                st.warning("Please enter some text.")
+                st.error("Please enter some text to summarize.")
+        if st.button("Clear Input"):
+            st.session_state.text = ""
+            st.experimental_rerun()  # Clear input and rerun app
 
     elif choice == "Summarize URL":
-        st.session_state.url = st.text_input("Enter URL")
+        url = st.text_input("Enter URL here:")
         if st.button("Summarize"):
-            if validate_input(st.session_state.url):
-                text = extract_text_from_url(st.session_state.url)
+            if validate_input(url):
+                st.session_state.url = url
+                text = extract_text_from_url(url)
                 if text:
-                    preprocessed_text = preprocess_text(text)
-                    summary = text_summary(preprocessed_text)
-                    translated_summary = translate_text(summary, language_code)
-                    st.subheader("Summary")
-                    st.write(translated_summary)
-                    save_summary(translated_summary)
-                    download_file(translated_summary, "summary.txt")
+                    summary = text_summary(text)
+                    st.write("Summary:")
+                    st.write(summary)
+                    save_summary(summary)
                 else:
-                    st.warning("Unable to extract text from the URL.")
+                    st.error("Unable to extract text from URL.")
             else:
-                st.warning("Please enter a URL.")
+                st.error("Please enter a URL.")
+        if st.button("Clear Input"):
+            st.session_state.url = ""
+            st.experimental_rerun()  # Clear input and rerun app
 
     elif choice == "Summarize Document":
-        st.session_state.uploaded_files = st.file_uploader("Choose a file", type=["pdf", "docx", "txt", "html", "csv", "xml", "jpg", "jpeg", "png"], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Choose files", accept_multiple_files=True)
         if st.button("Summarize"):
-            if st.session_state.uploaded_files:
-                all_text = ""
-                for file in st.session_state.uploaded_files:
-                    if file.type == "application/pdf":
-                        all_text += extract_text_from_pdf(file)
-                    elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                        all_text += extract_text_from_docx(file)
-                    elif file.type == "text/plain":
-                        all_text += extract_text_from_txt(file)
-                    elif file.type == "text/html":
-                        all_text += extract_text_from_html(file)
-                    elif file.type == "text/csv":
-                        all_text += extract_text_from_csv(file)
-                    elif file.type == "application/xml":
-                        all_text += extract_text_from_xml(file)
-                    elif file.type in ["image/jpeg", "image/png"]:
-                        all_text += extract_text_from_image(file)
-                if all_text:
-                    preprocessed_text = preprocess_text(all_text)
-                    summary = text_summary(preprocessed_text)
-                    translated_summary = translate_text(summary, language_code)
-                    st.subheader("Summary")
-                    st.write(translated_summary)
-                    save_summary(translated_summary)
-                    download_file(translated_summary, "summary.txt")
+            if uploaded_files:
+                st.session_state.uploaded_files = uploaded_files
+                combined_text = ""
+                for file in uploaded_files:
+                    if file.name.endswith(".pdf"):
+                        combined_text += extract_text_from_pdf(file)
+                    elif file.name.endswith(".docx"):
+                        combined_text += extract_text_from_docx(file)
+                    elif file.name.endswith(".txt"):
+                        combined_text += extract_text_from_txt(file)
+                    elif file.name.endswith(".html"):
+                        combined_text += extract_text_from_html(file)
+                    elif file.name.endswith(".csv"):
+                        combined_text += extract_text_from_csv(file)
+                    elif file.name.endswith(".xml"):
+                        combined_text += extract_text_from_xml(file)
+                    elif file.name.endswith((".jpg", ".jpeg", ".png")):
+                        combined_text += extract_text_from_image(file)
+                if combined_text:
+                    summary = text_summary(combined_text)
+                    st.write("Summary:")
+                    st.write(summary)
+                    save_summary(summary)
                 else:
-                    st.warning("No text extracted from the document.")
+                    st.error("Unable to extract text from uploaded documents.")
             else:
-                st.warning("Please upload a document.")
+                st.error("Please upload at least one document.")
+        if st.button("Clear Input"):
+            st.session_state.uploaded_files = []
+            st.experimental_rerun()  # Clear input and rerun app
 
     elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Paste Text from Clipboard")
+        clipboard_text = st.text_area("Paste text from clipboard here:", height=300)
         if st.button("Summarize"):
-            if validate_input(st.session_state.clipboard_text):
-                preprocessed_text = preprocess_text(st.session_state.clipboard_text)
-                summary = text_summary(preprocessed_text)
-                translated_summary = translate_text(summary, language_code)
-                st.subheader("Summary")
-                st.write(translated_summary)
-                save_summary(translated_summary)
-                download_file(translated_summary, "summary.txt")
+            if validate_input(clipboard_text):
+                st.session_state.clipboard_text = clipboard_text
+                summary = text_summary(clipboard_text)
+                st.write("Summary:")
+                st.write(summary)
+                save_summary(summary)
             else:
-                st.warning("Please paste some text.")
+                st.error("Please paste some text to summarize.")
+        if st.button("Clear Input"):
+            st.session_state.clipboard_text = ""
+            st.experimental_rerun()  # Clear input and rerun app
 
-    st.sidebar.subheader("History")
+    st.sidebar.subheader("Summary History")
+    if st.sidebar.button("Clear History"):
+        clear_summary_history()
+        st.sidebar.write("Summary history cleared.")
     history = load_summary_history()
     if history:
-        st.sidebar.text_area("Summary History", history, height=300)
-    else:
-        st.sidebar.text("No history available.")
+        st.sidebar.text_area("Previous Summaries", history, height=300)
 
 if __name__ == "__main__":
     main()
