@@ -113,6 +113,7 @@ languages = {
     "Xhosa": "xh",
     "Yoruba": "yo",
     "Zulu": "zu"
+
 }
 
 # Set page configuration
@@ -120,15 +121,15 @@ st.set_page_config(layout="wide")
 
 # Initialize text summarizer
 def text_summary(text, maxlength=None):
-    summary = Summary()
-    result = summary(text)
-    return result
+    summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+    summary = summarizer(text, max_length=maxlength, min_length=30, do_sample=False)
+    return summary[0]['summary_text']
 
 # Initialize tokenizer and model for sentiment analysis
 def initialize_sentiment_model():
     try:
-        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-        model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased")
+        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
+        model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
         return tokenizer, model
     except Exception as e:
         st.error(f"An error occurred while loading the sentiment model: {str(e)}")
@@ -335,30 +336,37 @@ def main():
                     download_file(translated_summary, "summary.txt")
 
     elif choice == "Summarize Document":
-        uploaded_files = st.file_uploader("Choose a file", accept_multiple_files=True)
-        st.session_state.uploaded_files = uploaded_files
+        uploaded_files = st.file_uploader("Choose files", accept_multiple_files=True)
 
-        if st.button("Summarize Document"):
-            if uploaded_files:
+        if uploaded_files:
+            st.session_state.uploaded_files = uploaded_files
+
+        if st.button("Summarize Documents"):
+            if st.session_state.uploaded_files:
                 with st.spinner("Processing..."):
-                    text = ""
-                    for uploaded_file in uploaded_files:
-                        if uploaded_file.type == "application/pdf":
-                            text += extract_text_from_pdf(uploaded_file)
-                        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                            text += extract_text_from_docx(uploaded_file)
-                        elif uploaded_file.type == "text/plain":
-                            text += extract_text_from_txt(uploaded_file)
-                        elif uploaded_file.type == "text/html":
-                            text += extract_text_from_html(uploaded_file)
-                        elif uploaded_file.type == "text/csv":
-                            text += extract_text_from_csv(uploaded_file)
-                        elif uploaded_file.type == "application/xml":
-                            text += extract_text_from_xml(uploaded_file)
-                        elif uploaded_file.type.startswith("image/"):
-                            text += extract_text_from_image(uploaded_file)
-                    
-                    summary = text_summary(text)
+                    all_text = ""
+                    for file in st.session_state.uploaded_files:
+                        if file.name.endswith(".pdf"):
+                            text = extract_text_from_pdf(file)
+                        elif file.name.endswith(".docx"):
+                            text = extract_text_from_docx(file)
+                        elif file.name.endswith(".txt"):
+                            text = extract_text_from_txt(file)
+                        elif file.name.endswith(".html"):
+                            text = extract_text_from_html(file)
+                        elif file.name.endswith(".csv"):
+                            text = extract_text_from_csv(file)
+                        elif file.name.endswith(".xml"):
+                            text = extract_text_from_xml(file)
+                        elif file.name.lower().endswith((".png", ".jpg", ".jpeg")):
+                            text = extract_text_from_image(file)
+                        else:
+                            st.warning(f"Unsupported file type: {file.name}")
+                            continue
+
+                        all_text += text
+
+                    summary = text_summary(all_text)
                     translated_summary = translate_text(summary, languages[selected_language])
                     
                     # Display summary
@@ -386,34 +394,33 @@ def main():
                     download_file(translated_summary, "summary.txt")
 
     elif choice == "Generate Questions":
-        st.session_state.text = st.text_area("Enter Text for Question Generation", st.session_state.text)
+        st.session_state.text = st.text_area("Enter Text to Generate Questions", st.session_state.text)
 
         if st.button("Generate Questions"):
             if validate_input(st.session_state.text):
-                with st.spinner("Generating questions..."):
-                    text = preprocess_text(st.session_state.text)
-                    questions = generate_questions(text)
-                    
-                    # Display questions
+                with st.spinner("Processing..."):
+                    questions = generate_questions(st.session_state.text)
                     st.write("### Generated Questions")
                     st.write(questions)
 
-                    save_summary(questions)
-                    download_file(questions, "questions.txt")
-
-    if st.sidebar.button("Clear Input"):
-        clear_input(choice)
-
-    if st.sidebar.button("Clear Summary History"):
-        clear_summary_history()
-
-    if st.sidebar.button("Load Summary History"):
+    # Display summary history
+    if st.checkbox("Show Summary History"):
         history = load_summary_history()
         if history:
             st.write("### Summary History")
             st.write(history)
         else:
-            st.write("No history available.")
+            st.write("No summary history found.")
+
+    # Clear history
+    if st.button("Clear History"):
+        clear_summary_history()
+        st.success("Summary history cleared.")
+
+    # Clear input fields
+    if st.button("Clear Input"):
+        clear_input(choice)
+        st.success("Input fields cleared.")
 
 if __name__ == "__main__":
     main()
