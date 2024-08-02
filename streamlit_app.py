@@ -1,6 +1,6 @@
 import streamlit as st
 from txtai.pipeline import Summary
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, BartTokenizer, BartForConditionalGeneration
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline, BartTokenizer, BartForConditionalGeneration
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -121,14 +121,14 @@ st.set_page_config(layout="wide")
 # Initialize text summarizer
 def text_summary(text, maxlength=None):
     summary = Summary()
-    result = summary(text, max_length=maxlength)
+    result = summary(text)
     return result
 
 # Initialize tokenizer and model for sentiment analysis
 def initialize_sentiment_model():
     try:
-        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
-        model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
+        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+        model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased")
         return tokenizer, model
     except Exception as e:
         st.error(f"An error occurred while loading the sentiment model: {str(e)}")
@@ -152,20 +152,6 @@ def preprocess_text(text):
     text = re.sub(r'\s+', ' ', text)
     text = re.sub(r'[^\w\s]', '', text)
     return text.strip()
-
-# Function to generate questions from text
-def generate_questions(text):
-    try:
-        tokenizer = BartTokenizer.from_pretrained('facebook/bart-large')
-        model = BartForConditionalGeneration.from_pretrained('facebook/bart-large')
-        
-        inputs = tokenizer("generate questions: " + text, return_tensors="pt", max_length=512, truncation=True)
-        outputs = model.generate(inputs['input_ids'], max_length=150, num_beams=5, early_stopping=True)
-        questions = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        return questions
-    except Exception as e:
-        st.error(f"An error occurred while generating questions: {str(e)}")
-        return "Error generating questions."
 
 # Function to extract text from URL
 def extract_text_from_url(url):
@@ -247,103 +233,187 @@ def clear_summary_history():
     if os.path.exists(filename):
         os.remove(filename)
 
-# Clear input fields
+# Function to clear input fields based on choice
 def clear_input(choice):
-    if choice == "Clear Input":
-        st.session_state.text_input = ""
-    elif choice == "Clear All":
-        clear_summary_history()
-        st.session_state.text_input = ""
+    if choice == "Summarize Text":
+        st.session_state.text = ""
+    elif choice == "Summarize URL":
+        st.session_state.url = ""
+    elif choice == "Summarize Document":
+        st.session_state.uploaded_files = []
+    elif choice == "Summarize Text from Clipboard":
+        st.session_state.clipboard_text = ""
+    elif choice == "Generate Questions":
+        st.session_state.text = ""
 
-# Define Streamlit UI
-st.title("Text Analysis Tool")
+# Function to validate input
+def validate_input(text):
+    return bool(text and text.strip())
 
-st.sidebar.title("Options")
-choice = st.sidebar.selectbox("Select an option", ["Summarize", "Sentiment Analysis", "Generate Questions", "Extract Text", "Language Translation", "Clear Input/All"])
+# Function to translate text using Google Translate API
+def translate_text(text, target_language):
+    translator = Translator()
+    translated = translator.translate(text, dest=target_language)
+    return translated.text
 
-if choice == "Summarize":
-    st.header("Text Summarization")
-    text_input = st.text_area("Enter text to summarize", height=200)
-    maxlength = st.number_input("Maximum length for summary", min_value=50, max_value=2000, value=150)
-    
-    if st.button("Summarize"):
-        summary = text_summary(text_input, maxlength)
-        st.write("Summary:")
-        st.write(summary)
-        save_summary(summary)
+# Function to generate questions
+def generate_questions(text):
+    try:
+        # Use a different model for question generation
+        tokenizer = BartTokenizer.from_pretrained('facebook/bart-large')
+        model = BartForConditionalGeneration.from_pretrained('facebook/bart-large')
         
-elif choice == "Sentiment Analysis":
-    st.header("Sentiment Analysis")
-    text_input = st.text_area("Enter text for sentiment analysis", height=200)
-    
+        inputs = tokenizer("generate questions: " + text, return_tensors="pt", max_length=512, truncation=True)
+        outputs = model.generate(inputs['input_ids'], max_length=150, num_beams=5, early_stopping=True)
+        questions = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        return questions
+    except Exception as e:
+        st.error(f"An error occurred while generating questions: {str(e)}")
+        return "Error generating questions."
+
+# Function to download file
+def download_file(content, filename):
+    st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
+
+# Main function to run the Streamlit app
+def main():
+    st.title("Text Summarization and Sentiment Analysis App")
+
+    # Language selection
+    selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
+
+    # Handle choice selection
+    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard", "Generate Questions"])
+
+    # Initialize session state attributes if they don't exist
+    if 'text' not in st.session_state:
+        st.session_state.text = ""
+    if 'url' not in st.session_state:
+        st.session_state.url = ""
+    if 'uploaded_files' not in st.session_state:
+        st.session_state.uploaded_files = []
+    if 'clipboard_text' not in st.session_state:
+        st.session_state.clipboard_text = ""
+
+    # Initialize sentiment model
     tokenizer, model = initialize_sentiment_model()
-    
-    if tokenizer and model:
-        if st.button("Analyze Sentiment"):
-            result = sentiment_analysis(text_input, tokenizer, model)
-            st.write("Sentiment:")
-            st.write(result["label"])
-            st.write("Score:")
-            st.write(result["score"])
 
-elif choice == "Generate Questions":
-    st.header("Question Generation")
-    text_input = st.text_area("Enter text to generate questions", height=200)
-    
-    if st.button("Generate Questions"):
-        questions = generate_questions(text_input)
-        st.write("Generated Questions:")
-        st.write(questions)
+    # Handle each choice
+    if choice == "Summarize Text":
+        st.session_state.text = st.text_area("Enter Text", st.session_state.text)
+        maxlength = st.slider("Maximum Summary Length", min_value=50, max_value=1000, value=200)
 
-elif choice == "Extract Text":
-    st.header("Text Extraction")
-    upload_file = st.file_uploader("Choose a file", type=["pdf", "docx", "txt", "html", "csv", "xml", "png", "jpg", "jpeg"])
-    
-    if upload_file is not None:
-        file_type = upload_file.type.split('/')[1]
-        if file_type in ["pdf", "docx", "txt"]:
-            if file_type == "pdf":
-                text = extract_text_from_pdf(upload_file)
-            elif file_type == "docx":
-                text = extract_text_from_docx(upload_file)
-            else:
-                text = extract_text_from_txt(upload_file)
-        elif file_type == "html":
-            text = extract_text_from_html(upload_file)
-        elif file_type == "csv":
-            text = extract_text_from_csv(upload_file)
-        elif file_type == "xml":
-            text = extract_text_from_xml(upload_file)
-        elif file_type in ["png", "jpg", "jpeg"]:
-            text = extract_text_from_image(upload_file)
+        if st.button("Summarize"):
+            if validate_input(st.session_state.text):
+                with st.spinner("Processing..."):
+                    text = preprocess_text(st.session_state.text)
+                    summary = text_summary(text, maxlength)
+                    translated_summary = translate_text(summary, languages[selected_language])
+                    
+                    # Display summary
+                    st.write("### Summary")
+                    st.write(translated_summary)
+
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
+
+    elif choice == "Summarize URL":
+        st.session_state.url = st.text_input("Enter URL", st.session_state.url)
+
+        if st.button("Summarize URL"):
+            if validate_input(st.session_state.url):
+                with st.spinner("Processing..."):
+                    text = extract_text_from_url(st.session_state.url)
+                    summary = text_summary(text)
+                    translated_summary = translate_text(summary, languages[selected_language])
+                    
+                    # Display summary
+                    st.write("### Summary")
+                    st.write(translated_summary)
+
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
+
+    elif choice == "Summarize Document":
+        uploaded_files = st.file_uploader("Choose a file", accept_multiple_files=True)
+        st.session_state.uploaded_files = uploaded_files
+
+        if st.button("Summarize Document"):
+            if uploaded_files:
+                with st.spinner("Processing..."):
+                    text = ""
+                    for uploaded_file in uploaded_files:
+                        if uploaded_file.type == "application/pdf":
+                            text += extract_text_from_pdf(uploaded_file)
+                        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                            text += extract_text_from_docx(uploaded_file)
+                        elif uploaded_file.type == "text/plain":
+                            text += extract_text_from_txt(uploaded_file)
+                        elif uploaded_file.type == "text/html":
+                            text += extract_text_from_html(uploaded_file)
+                        elif uploaded_file.type == "text/csv":
+                            text += extract_text_from_csv(uploaded_file)
+                        elif uploaded_file.type == "application/xml":
+                            text += extract_text_from_xml(uploaded_file)
+                        elif uploaded_file.type.startswith("image/"):
+                            text += extract_text_from_image(uploaded_file)
+                    
+                    summary = text_summary(text)
+                    translated_summary = translate_text(summary, languages[selected_language])
+                    
+                    # Display summary
+                    st.write("### Summary")
+                    st.write(translated_summary)
+
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
+
+    elif choice == "Summarize Text from Clipboard":
+        st.session_state.clipboard_text = st.text_area("Paste Text from Clipboard", st.session_state.clipboard_text)
+
+        if st.button("Summarize Clipboard Text"):
+            if validate_input(st.session_state.clipboard_text):
+                with st.spinner("Processing..."):
+                    text = preprocess_text(st.session_state.clipboard_text)
+                    summary = text_summary(text)
+                    translated_summary = translate_text(summary, languages[selected_language])
+                    
+                    # Display summary
+                    st.write("### Summary")
+                    st.write(translated_summary)
+
+                    save_summary(translated_summary)
+                    download_file(translated_summary, "summary.txt")
+
+    elif choice == "Generate Questions":
+        st.session_state.text = st.text_area("Enter Text for Question Generation", st.session_state.text)
+
+        if st.button("Generate Questions"):
+            if validate_input(st.session_state.text):
+                with st.spinner("Generating questions..."):
+                    text = preprocess_text(st.session_state.text)
+                    questions = generate_questions(text)
+                    
+                    # Display questions
+                    st.write("### Generated Questions")
+                    st.write(questions)
+
+                    save_summary(questions)
+                    download_file(questions, "questions.txt")
+
+    if st.sidebar.button("Clear Input"):
+        clear_input(choice)
+
+    if st.sidebar.button("Clear Summary History"):
+        clear_summary_history()
+
+    if st.sidebar.button("Load Summary History"):
+        history = load_summary_history()
+        if history:
+            st.write("### Summary History")
+            st.write(history)
         else:
-            st.error("Unsupported file type")
-            text = ""
-        
-        st.write("Extracted Text:")
-        st.write(text)
-        
-elif choice == "Language Translation":
-    st.header("Language Translation")
-    text_input = st.text_area("Enter text to translate", height=200)
-    target_language = st.selectbox("Select target language", list(languages.keys()))
-    
-    if st.button("Translate"):
-        translator = Translator()
-        target_lang_code = languages[target_language]
-        translated = translator.translate(text_input, dest=target_lang_code).text
-        st.write("Translated Text:")
-        st.write(translated)
+            st.write("No history available.")
 
-elif choice == "Clear Input/All":
-    st.header("Clear Input/All")
-    clear_choice = st.selectbox("Choose what to clear", ["Clear Input", "Clear All"])
-    
-    if st.button("Clear"):
-        clear_input(clear_choice)
-        st.success(f"{clear_choice} cleared!")
-
-# Display summary history
-st.sidebar.title("Summary History")
-history = load_summary_history()
-st.sidebar.text_area("History", history, height=300)
+if __name__ == "__main__":
+    main()
