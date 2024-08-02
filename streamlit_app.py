@@ -1,6 +1,5 @@
 import streamlit as st
 from txtai.pipeline import Summary
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -124,28 +123,6 @@ def text_summary(text, maxlength=None):
     result = summary(text)
     return result
 
-# Initialize tokenizer and model for sentiment analysis
-def initialize_sentiment_model():
-    try:
-        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-        model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased")
-        return tokenizer, model
-    except Exception as e:
-        st.error(f"An error occurred while loading the sentiment model: {str(e)}")
-        return None, None
-
-# Perform sentiment analysis
-def sentiment_analysis(text, tokenizer, model):
-    try:
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-        outputs = model(**inputs)
-        logits = outputs.logits
-        predictions = torch.argmax(logits, dim=1)
-        return {"label": "POSITIVE" if predictions.item() == 1 else "NEGATIVE", "score": torch.softmax(logits, dim=1)[0, predictions.item()].item()}
-    except Exception as e:
-        st.error(f"An error occurred during sentiment analysis: {str(e)}")
-        return {"label": "ERROR", "score": 0.0}
-
 # Function to preprocess text
 def preprocess_text(text):
     # Remove extra whitespace and special characters
@@ -260,7 +237,7 @@ def download_file(content, filename):
 
 # Main function to run the Streamlit app
 def main():
-    st.title("Text Summarization and Sentiment Analysis App")
+    st.title("Text Summarization App")
 
     # Language selection
     selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
@@ -278,9 +255,6 @@ def main():
     if 'clipboard_text' not in st.session_state:
         st.session_state.clipboard_text = ""
 
-    # Initialize sentiment model
-    tokenizer, model = initialize_sentiment_model()
-
     # Handle each choice
     if choice == "Summarize Text":
         st.session_state.text = st.text_area("Enter Text", st.session_state.text)
@@ -291,13 +265,9 @@ def main():
                 with st.spinner("Processing..."):
                     text = preprocess_text(st.session_state.text)
                     summary = text_summary(text, maxlength)
-                    sentiment = sentiment_analysis(text, tokenizer, model)
                     translated_summary = translate_text(summary, languages[selected_language])
                     
-                    # Display sentiment analysis and summary
-                    st.write("### Sentiment Analysis")
-                    st.write(f"Label: {sentiment['label']}, Score: {sentiment['score']:.2f}")
-
+                    # Display summary
                     st.write("### Summary")
                     st.write(translated_summary)
 
@@ -312,13 +282,9 @@ def main():
                 with st.spinner("Processing..."):
                     text = extract_text_from_url(st.session_state.url)
                     summary = text_summary(text)
-                    sentiment = sentiment_analysis(text, tokenizer, model)
                     translated_summary = translate_text(summary, languages[selected_language])
                     
-                    # Display sentiment analysis and summary
-                    st.write("### Sentiment Analysis")
-                    st.write(f"Label: {sentiment['label']}, Score: {sentiment['score']:.2f}")
-
+                    # Display summary
                     st.write("### Summary")
                     st.write(translated_summary)
 
@@ -348,13 +314,9 @@ def main():
                             text += extract_text_from_image(uploaded_file)
 
                     summary = text_summary(text)
-                    sentiment = sentiment_analysis(text, tokenizer, model)
                     translated_summary = translate_text(summary, languages[selected_language])
                     
-                    # Display sentiment analysis and summary
-                    st.write("### Sentiment Analysis")
-                    st.write(f"Label: {sentiment['label']}, Score: {sentiment['score']:.2f}")
-
+                    # Display summary
                     st.write("### Summary")
                     st.write(translated_summary)
 
@@ -369,13 +331,9 @@ def main():
                 with st.spinner("Processing..."):
                     text = preprocess_text(st.session_state.clipboard_text)
                     summary = text_summary(text)
-                    sentiment = sentiment_analysis(text, tokenizer, model)
                     translated_summary = translate_text(summary, languages[selected_language])
                     
-                    # Display sentiment analysis and summary
-                    st.write("### Sentiment Analysis")
-                    st.write(f"Label: {sentiment['label']}, Score: {sentiment['score']:.2f}")
-
+                    # Display summary
                     st.write("### Summary")
                     st.write(translated_summary)
 
