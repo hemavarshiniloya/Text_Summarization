@@ -1,10 +1,10 @@
+streamlit
 faiss-cpu
 easyocr
 python-bidi
 lxml
 pytesseract
-Pillow
-streamlit
+Pillows
 openpyxl
 ebooklib
 python-pptx
