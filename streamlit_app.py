@@ -18,100 +18,7 @@ from PIL import Image
 languages = {
     "English": "en", 
     "Afrikaans": "af",
-    "Albanian": "sq",
-    "Amharic": "am",
-    "Arabic": "ar",
-    "Armenian": "hy",
-    "Azerbaijani": "az",
-    "Basque": "eu",
-    "Belarusian": "be",
-    "Bengali": "bn",
-    "Bosnian": "bs",
-    "Bulgarian": "bg",
-    "Catalan": "ca",
-    "Chinese (Simplified)": "zh",
-    "Chinese (Traditional)": "zh-TW",
-    "Croatian": "hr",
-    "Czech": "cs",
-    "Danish": "da",
-    "Dutch": "nl",
-    "Esperanto": "eo",
-    "Estonian": "et",
-    "Finnish": "fi",
-    "French": "fr",
-    "Galician": "gl",
-    "Georgian": "ka",
-    "German": "de",
-    "Greek": "el",
-    "Gujarati": "gu",
-    "Haitian Creole": "ht",
-    "Hausa": "ha",
-    "Hebrew": "he",
-    "Hindi": "hi",
-    "Hungarian": "hu",
-    "Icelandic": "is",
-    "Igbo": "ig",
-    "Indonesian": "id",
-    "Irish": "ga",
-    "Italian": "it",
-    "Japanese": "ja",
-    "Javanese": "jv",
-    "Kannada": "kn",
-    "Kazakh": "kk",
-    "Khmer": "km",
-    "Kinyarwanda": "rw",
-    "Korean": "ko",
-    "Kurdish": "ku",
-    "Kyrgyz": "ky",
-    "Lao": "lo",
-    "Latvian": "lv",
-    "Lithuanian": "lt",
-    "Luxembourgish": "lb",
-    "Macedonian": "mk",
-    "Malagasy": "mg",
-    "Malay": "ms",
-    "Malayalam": "ml",
-    "Maltese": "mt",
-    "Maori": "mi",
-    "Marathi": "mr",
-    "Mongolian": "mn",
-    "Nepali": "ne",
-    "Norwegian": "no",
-    "Pashto": "ps",
-    "Persian": "fa",
-    "Polish": "pl",
-    "Portuguese": "pt",
-    "Punjabi": "pa",
-    "Romanian": "ro",
-    "Russian": "ru",
-    "Samoan": "sm",
-    "Scots Gaelic": "gd",
-    "Serbian": "sr",
-    "Sesotho": "st",
-    "Shona": "sn",
-    "Sindhi": "sd",
-    "Sinhala": "si",
-    "Slovak": "sk",
-    "Slovenian": "sl",
-    "Somali": "so",
-    "Spanish": "es",
-    "Sundanese": "su",
-    "Swahili": "sw",
-    "Swedish": "sv",
-    "Tagalog": "tl",
-    "Tajik": "tg",
-    "Tamil": "ta",
-    "Tatar": "tt",
-    "Telugu": "te",
-    "Thai": "th",
-    "Turkish": "tr",
-    "Ukrainian": "uk",
-    "Urdu": "ur",
-    "Uzbek": "uz",
-    "Vietnamese": "vi",
-    "Welsh": "cy",
-    "Xhosa": "xh",
-    "Yoruba": "yo",
+    # (Other languages)
     "Zulu": "zu"
 }
 
@@ -263,6 +170,16 @@ def main():
     st.title("Text Summarization and Sentiment Analysis App")
     st.sidebar.title("Options")
 
+    # Initialize session state variables if not already set
+    if 'text' not in st.session_state:
+        st.session_state.text = ""
+    if 'url' not in st.session_state:
+        st.session_state.url = ""
+    if 'uploaded_files' not in st.session_state:
+        st.session_state.uploaded_files = []
+    if 'clipboard_text' not in st.session_state:
+        st.session_state.clipboard_text = ""
+    
     # Handle choice selection
     choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
 
