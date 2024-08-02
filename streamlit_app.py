@@ -252,11 +252,20 @@ def translate_text(text, target_language):
 def download_file(content, filename):
     st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
 
-# Main function
 def main():
     st.title("Summarization App")
     st.sidebar.title("Options")
     choice = st.sidebar.selectbox("Select your choice", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
+
+    # Initialize session state attributes if they don't exist
+    if 'text' not in st.session_state:
+        st.session_state.text = ""
+    if 'url' not in st.session_state:
+        st.session_state.url = ""
+    if 'uploaded_files' not in st.session_state:
+        st.session_state.uploaded_files = []
+    if 'clipboard_text' not in st.session_state:
+        st.session_state.clipboard_text = ""
 
     # Initialize sentiment model
     tokenizer, model = initialize_sentiment_model()
