@@ -1,18 +1,22 @@
-streamlit
-txtai
 faiss-cpu
-requests
-beautifulsoup4
-PyPDF2
-python-docx
-pandas
 easyocr
 python-bidi
 lxml
 pytesseract
 Pillow
+streamlit
+openpyxl
+ebooklib
+python-pptx
+txtai
+transformers
 googletrans==4.0.0-rc1
 textblob
-openpyxl
+beautifulsoup4
+PyPDF2
+python-docx
+pandas
+pytesseract
+requests
 
 
