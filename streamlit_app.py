@@ -13,110 +13,13 @@ from googletrans import Translator
 import re
 import torch
 from PIL import Image
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import language_tool_python
+import spacy
 
-# List of languages with their ISO 639-1 codes
-languages = {
-    "English": "en", 
-    "Afrikaans": "af",
-    "Albanian": "sq",
-    "Amharic": "am",
-    "Arabic": "ar",
-    "Armenian": "hy",
-    "Azerbaijani": "az",
-    "Basque": "eu",
-    "Belarusian": "be",
-    "Bengali": "bn",
-    "Bosnian": "bs",
-    "Bulgarian": "bg",
-    "Catalan": "ca",
-    "Chinese (Simplified)": "zh",
-    "Chinese (Traditional)": "zh-TW",
-    "Croatian": "hr",
-    "Czech": "cs",
-    "Danish": "da",
-    "Dutch": "nl",
-    "Esperanto": "eo",
-    "Estonian": "et",
-    "Finnish": "fi",
-    "French": "fr",
-    "Galician": "gl",
-    "Georgian": "ka",
-    "German": "de",
-    "Greek": "el",
-    "Gujarati": "gu",
-    "Haitian Creole": "ht",
-    "Hausa": "ha",
-    "Hebrew": "he",
-    "Hindi": "hi",
-    "Hungarian": "hu",
-    "Icelandic": "is",
-    "Igbo": "ig",
-    "Indonesian": "id",
-    "Irish": "ga",
-    "Italian": "it",
-    "Japanese": "ja",
-    "Javanese": "jv",
-    "Kannada": "kn",
-    "Kazakh": "kk",
-    "Khmer": "km",
-    "Kinyarwanda": "rw",
-    "Korean": "ko",
-    "Kurdish": "ku",
-    "Kyrgyz": "ky",
-    "Lao": "lo",
-    "Latvian": "lv",
-    "Lithuanian": "lt",
-    "Luxembourgish": "lb",
-    "Macedonian": "mk",
-    "Malagasy": "mg",
-    "Malay": "ms",
-    "Malayalam": "ml",
-    "Maltese": "mt",
-    "Maori": "mi",
-    "Marathi": "mr",
-    "Mongolian": "mn",
-    "Nepali": "ne",
-    "Norwegian": "no",
-    "Pashto": "ps",
-    "Persian": "fa",
-    "Polish": "pl",
-    "Portuguese": "pt",
-    "Punjabi": "pa",
-    "Romanian": "ro",
-    "Russian": "ru",
-    "Samoan": "sm",
-    "Scots Gaelic": "gd",
-    "Serbian": "sr",
-    "Sesotho": "st",
-    "Shona": "sn",
-    "Sindhi": "sd",
-    "Sinhala": "si",
-    "Slovak": "sk",
-    "Slovenian": "sl",
-    "Somali": "so",
-    "Spanish": "es",
-    "Sundanese": "su",
-    "Swahili": "sw",
-    "Swedish": "sv",
-    "Tagalog": "tl",
-    "Tajik": "tg",
-    "Tamil": "ta",
-    "Tatar": "tt",
-    "Telugu": "te",
-    "Thai": "th",
-    "Turkish": "tr",
-    "Ukrainian": "uk",
-    "Urdu": "ur",
-    "Uzbek": "uz",
-    "Vietnamese": "vi",
-    "Welsh": "cy",
-    "Xhosa": "xh",
-    "Yoruba": "yo",
-    "Zulu": "zu"
-}
-
-# Set page configuration
-st.set_page_config(layout="wide")
+# Load Spacy model for keyword extraction
+nlp = spacy.load("en_core_web_sm")
 
 # Initialize text summarizer
 def text_summary(text, maxlength=None):
@@ -185,6 +88,42 @@ def extract_text_from_image(file):
     image = Image.open(file)
     text = pytesseract.image_to_string(image)
     return text
+
+# Function to extract text from Screenshot (image)
+def extract_text_from_screenshot(file):
+    return extract_text_from_image(file)
+
+# Function to calculate text similarity
+def calculate_text_similarity(text1, text2):
+    vectorizer = TfidfVectorizer().fit_transform([text1, text2])
+    vectors = vectorizer.toarray()
+    similarity = cosine_similarity([vectors[0]], [vectors[1]])[0][0]
+    return similarity
+
+# Function to classify text
+def classify_text(text, model_name='bert-base-uncased', labels=None):
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+    inputs = tokenizer(text, return_tensors="pt", max_length=512, truncation=True)
+    outputs = model(**inputs)
+    logits = outputs.logits
+    probs = torch.nn.functional.softmax(logits, dim=-1)
+    pred_class = torch.argmax(probs, dim=-1).item()
+    if labels:
+        return labels[pred_class]
+    return pred_class
+
+# Function to extract keywords
+def extract_keywords(text):
+    doc = nlp(text)
+    keywords = [token.text for token in doc if token.is_stop == False and token.is_punct == False]
+    return keywords
+
+# Function to perform grammar and spell check
+def grammar_and_spell_check(text):
+    tool = language_tool_python.LanguageTool('en-US')
+    matches = tool.check(text)
+    return matches
 
 # Function to save summary to history
 def save_summary(summary):
@@ -259,7 +198,7 @@ def main():
     selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
 
     # Handle choice selection
-    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard", "Generate Questions"])
+    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard", "Generate Questions", "Text Similarity", "Classify Text", "Extract Keywords", "Grammar and Spell Check"])
 
     if "text" not in st.session_state:
         st.session_state.text = ""
@@ -269,6 +208,8 @@ def main():
         st.session_state.uploaded_files = []
     if "clipboard_text" not in st.session_state:
         st.session_state.clipboard_text = ""
+    if "text2" not in st.session_state:
+        st.session_state.text2 = ""
 
     if choice == "Summarize Text":
         st.session_state.text = st.text_area("Enter Text", st.session_state.text)
@@ -340,12 +281,47 @@ def main():
             else:
                 st.error("Please enter valid text from clipboard.")
 
-    elif choice == "Generate Questions":
+
+    elif choice == "Text Similarity":
+        st.session_state.text = st.text_area("Enter First Text", st.session_state.text)
+        st.session_state.text2 = st.text_area("Enter Second Text", st.session_state.text2)
+        if st.button("Compare"):
+            if validate_input(st.session_state.text) and validate_input(st.session_state.text2):
+                similarity = calculate_text_similarity(st.session_state.text, st.session_state.text2)
+                st.write(f"Similarity Score: {similarity:.2f}")
+            else:
+                st.error("Please enter valid texts.")
+
+    elif choice == "Classify Text":
         st.session_state.text = st.text_area("Enter Text", st.session_state.text)
-        if st.button("Generate Questions"):
+        if st.button("Classify"):
             if validate_input(st.session_state.text):
-                questions = generate_questions(preprocess_text(st.session_state.text))
-                st.write("Generated Questions:", questions)
+                labels = ["Category 1", "Category 2", "Category 3"]  # Define your categories here
+                classification = classify_text(st.session_state.text, labels=labels)
+                st.write("Classified as:", classification)
+            else:
+                st.error("Please enter valid text.")
+
+    elif choice == "Extract Keywords":
+        st.session_state.text = st.text_area("Enter Text", st.session_state.text)
+        if st.button("Extract Keywords"):
+            if validate_input(st.session_state.text):
+                keywords = extract_keywords(st.session_state.text)
+                st.write("Keywords:", keywords)
+            else:
+                st.error("Please enter valid text.")
+
+    elif choice == "Grammar and Spell Check":
+        st.session_state.text = st.text_area("Enter Text", st.session_state.text)
+        if st.button("Check"):
+            if validate_input(st.session_state.text):
+                matches = grammar_and_spell_check(st.session_state.text)
+                if matches:
+                    st.write("Grammar and Spell Check Results:")
+                    for match in matches:
+                        st.write(f"{match.message} (at position {match.offset})")
+                else:
+                    st.write("No issues found.")
             else:
                 st.error("Please enter valid text.")
 
