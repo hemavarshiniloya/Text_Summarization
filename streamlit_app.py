@@ -253,7 +253,6 @@ def main():
     language_code = st.sidebar.selectbox(
         "Select Language",
         list(languages.values()),
-        format_func=lambda x: [k for k, v in languages.items() if v == x][0],
         index=list(languages.values()).index(default_language_code)
     )
 
@@ -266,11 +265,11 @@ def main():
                 st.write("Summary:")
                 st.write(summary)
                 save_summary(summary)
+                translated_summary = translate_text(summary, language_code)
+                download_file(translated_summary, "summary.txt")
             else:
                 st.error("Please enter some text to summarize.")
-        if st.button("Clear Input"):
-            st.session_state.text = ""
-            st.experimental_rerun()  # Clear input and rerun app
+        st.button("Clear Input", on_click=lambda: clear_input("Summarize Text"))
 
     elif choice == "Summarize URL":
         url = st.text_input("Enter URL here:")
@@ -283,13 +282,13 @@ def main():
                     st.write("Summary:")
                     st.write(summary)
                     save_summary(summary)
+                    translated_summary = translate_text(summary, language_code)
+                    download_file(translated_summary, "summary.txt")
                 else:
                     st.error("Unable to extract text from URL.")
             else:
                 st.error("Please enter a URL.")
-        if st.button("Clear Input"):
-            st.session_state.url = ""
-            st.experimental_rerun()  # Clear input and rerun app
+        st.button("Clear Input", on_click=lambda: clear_input("Summarize URL"))
 
     elif choice == "Summarize Document":
         uploaded_files = st.file_uploader("Choose files", accept_multiple_files=True)
@@ -317,13 +316,13 @@ def main():
                     st.write("Summary:")
                     st.write(summary)
                     save_summary(summary)
+                    translated_summary = translate_text(summary, language_code)
+                    download_file(translated_summary, "summary.txt")
                 else:
                     st.error("Unable to extract text from uploaded documents.")
             else:
                 st.error("Please upload at least one document.")
-        if st.button("Clear Input"):
-            st.session_state.uploaded_files = []
-            st.experimental_rerun()  # Clear input and rerun app
+        st.button("Clear Input", on_click=lambda: clear_input("Summarize Document"))
 
     elif choice == "Summarize Text from Clipboard":
         clipboard_text = st.text_area("Paste text from clipboard here:", height=300)
@@ -334,11 +333,11 @@ def main():
                 st.write("Summary:")
                 st.write(summary)
                 save_summary(summary)
+                translated_summary = translate_text(summary, language_code)
+                download_file(translated_summary, "summary.txt")
             else:
                 st.error("Please paste some text to summarize.")
-        if st.button("Clear Input"):
-            st.session_state.clipboard_text = ""
-            st.experimental_rerun()  # Clear input and rerun app
+        st.button("Clear Input", on_click=lambda: clear_input("Summarize Text from Clipboard"))
 
     st.sidebar.subheader("Summary History")
     if st.sidebar.button("Clear History"):
