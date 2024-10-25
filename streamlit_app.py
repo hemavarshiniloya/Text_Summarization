@@ -1,93 +1,119 @@
 import streamlit as st
-import nltk
 from textblob import TextBlob
+import nltk
 import requests
 from bs4 import BeautifulSoup
 import PyPDF2
 import docx
+from docx import Document
 import os
+from datetime import datetime
+import base64
+from fpdf import FPDF
+import io
 
-# Function to download necessary NLTK and TextBlob data
-def download_required_data():
-    """Download necessary NLTK and TextBlob corpora."""
-    # Download NLTK data
-    nltk.download('punkt')
-    nltk.download('averaged_perceptron_tagger')
-    nltk.download('brown')
-    nltk.download('wordnet')
-    nltk.download('omw-1.4')
+# Add these new functions for saving summaries
+
+def save_as_txt(summary, filename="summary.txt"):
+    """Save summary as TXT file and return download link."""
+    try:
+        # Create buffer
+        buffer = io.StringIO()
+        buffer.write(summary)
+        buffer.seek(0)
+        
+        # Create download button
+        btn = st.download_button(
+            label="Download as TXT",
+            data=buffer.getvalue(),
+            file_name=filename,
+            mime="text/plain"
+        )
+        return btn
+    except Exception as e:
+        st.error(f"Error saving as TXT: {str(e)}")
+        return None
+
+def save_as_pdf(summary, filename="summary.pdf"):
+    """Save summary as PDF file and return download link."""
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        
+        # Split text into lines that fit the PDF width
+        lines = [summary[i:i+90] for i in range(0, len(summary), 90)]
+        for line in lines:
+            pdf.cell(0, 10, txt=line, ln=True)
+        
+        # Save to buffer
+        pdf_buffer = io.BytesIO()
+        pdf.output(pdf_buffer)
+        pdf_buffer.seek(0)
+        
+        # Create download button
+        btn = st.download_button(
+            label="Download as PDF",
+            data=pdf_buffer,
+            file_name=filename,
+            mime="application/pdf"
+        )
+        return btn
+    except Exception as e:
+        st.error(f"Error saving as PDF: {str(e)}")
+        return None
+
+def save_as_docx(summary, filename="summary.docx"):
+    """Save summary as DOCX file and return download link."""
+    try:
+        # Create document
+        doc = Document()
+        doc.add_paragraph(summary)
+        
+        # Save to buffer
+        docx_buffer = io.BytesIO()
+        doc.save(docx_buffer)
+        docx_buffer.seek(0)
+        
+        # Create download button
+        btn = st.download_button(
+            label="Download as DOCX",
+            data=docx_buffer,
+            file_name=filename,
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+        return btn
+    except Exception as e:
+        st.error(f"Error saving as DOCX: {str(e)}")
+        return None
+
+def display_download_options(summary, original_text=""):
+    """Display download options for the summary."""
+    st.markdown("### Download Options")
     
-    # Download TextBlob corpora
-    try:
-        from textblob import download_corpora
-        download_corpora.download_all()
-    except Exception as e:
-        st.error(f"Error downloading TextBlob corpora: {str(e)}")
-
-# Function to extract text from a given URL
-def extract_text_from_url(url):
-    """Extract text from a given URL."""
-    try:
-        response = requests.get(url)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        return ' '.join(p.get_text() for p in soup.find_all('p'))
-    except Exception as e:
-        st.error(f"Error fetching URL: {e}")
-        return ""
-
-# Function to extract text from a PDF file
-def extract_text_from_pdf(file):
-    """Extract text from a PDF file."""
-    try:
-        reader = PyPDF2.PdfReader(file)
-        text = ''
-        for page in reader.pages:
-            text += page.extract_text() or ''
-        return text
-    except Exception as e:
-        st.error(f"Error reading PDF file: {e}")
-        return ""
-
-# Function to extract text from a Word document
-def extract_text_from_docx(file):
-    """Extract text from a Word document."""
-    try:
-        doc = docx.Document(file)
-        text = ''
-        for paragraph in doc.paragraphs:
-            text += paragraph.text + '\n'
-        return text
-    except Exception as e:
-        st.error(f"Error reading Word document: {e}")
-        return ""
-
-# Function to summarize the given text using TextBlob
-def summarize_text(text, num_sentences=3):
-    """Summarize the given text using TextBlob."""
-    if not text:
-        return ""
+    # Generate timestamp for unique filenames
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    try:
-        blob = TextBlob(text)
-        sentences = blob.sentences
-        sorted_sentences = sorted(sentences, key=lambda s: len(s.noun_phrases), reverse=True)
-        summary_sentences = [str(sentence) for sentence in sorted_sentences[:num_sentences]]
-        summary = ' '.join(summary_sentences)
-        return summary
-    except Exception as e:
-        st.error(f"Error in summarization: {str(e)}")
-        return ""
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        save_as_txt(summary, f"summary_{timestamp}.txt")
+    
+    with col2:
+        save_as_pdf(summary, f"summary_{timestamp}.pdf")
+    
+    with col3:
+        save_as_docx(summary, f"summary_{timestamp}.docx")
 
-# Main function for the Streamlit app
+    # Option to save both original and summary
+    if original_text:
+        st.markdown("### Save Original Text with Summary")
+        combined_text = f"Original Text:\n\n{original_text}\n\nSummary:\n\n{summary}"
+        save_as_txt(combined_text, f"full_text_and_summary_{timestamp}.txt")
+
+# Modify your main function to include saving options
 def main():
-    st.title("📝 Text Summarization App")
-    
-    # Download required data at startup
-    with st.spinner("Downloading required data..."):
-        download_required_data()
-        st.success("Required data downloaded successfully!")
-
-    st.markdown("---")
+    st.title("Text Summarization App")
 
     choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document"])
 
@@ -100,6 +126,9 @@ def main():
                 summary = summarize_text(input_text, num_sentences)
                 st.write("### Summary")
                 st.write(summary)
+                
+                # Display download options
+                display_download_options(summary, input_text)
             else:
                 st.warning("Please enter some text to summarize.")
 
@@ -114,6 +143,9 @@ def main():
                     summary = summarize_text(text_from_url, num_sentences)
                     st.write("### Summary")
                     st.write(summary)
+                    
+                    # Display download options
+                    display_download_options(summary, text_from_url)
                 else:
                     st.write("No text found at the provided URL.")
             else:
@@ -127,13 +159,16 @@ def main():
             if uploaded_file:
                 if uploaded_file.type == "application/pdf":
                     text_from_document = extract_text_from_pdf(uploaded_file)
-                elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                else:
                     text_from_document = extract_text_from_docx(uploaded_file)
 
                 if text_from_document:
                     summary = summarize_text(text_from_document, num_sentences)
                     st.write("### Summary")
                     st.write(summary)
+                    
+                    # Display download options
+                    display_download_options(summary, text_from_document)
                 else:
                     st.write("No text found in the uploaded document.")
             else:
