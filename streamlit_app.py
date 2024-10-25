@@ -1,5 +1,6 @@
 import streamlit as st
-from gensim.summarization import summarize
+from gensim.summarization.summarizer import summarize
+from gensim.summarization import keywords
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
