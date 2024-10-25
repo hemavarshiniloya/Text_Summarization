@@ -1,6 +1,5 @@
 import streamlit as st
 import nltk
-nltk.download("punkt")
 from textblob import TextBlob
 import requests
 from bs4 import BeautifulSoup
@@ -9,6 +8,9 @@ from docx import Document
 import pandas as pd
 import xml.etree.ElementTree as ET
 import re
+
+# Ensure necessary NLTK corpora are downloaded
+nltk.download("punkt")
 
 # Set page configuration
 st.set_page_config(layout="wide")
