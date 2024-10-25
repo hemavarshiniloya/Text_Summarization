@@ -1,3 +1,4 @@
+
 import streamlit as st
 from txtai.pipeline import Summary
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
@@ -8,11 +9,9 @@ from docx import Document
 import pandas as pd
 import xml.etree.ElementTree as ET
 import os
-import pytesseract
 from googletrans import Translator
 import re
-import torch
-from PIL import Image
+
 
 # List of languages with their ISO 639-1 codes
 languages = {
@@ -181,11 +180,6 @@ def extract_text_from_xml(file):
     text = " ".join([elem.text for elem in root.iter() if elem.text])
     return text
 
-# Function to extract text from Image
-def extract_text_from_image(file):
-    image = Image.open(file)
-    text = pytesseract.image_to_string(image)
-    return text
 
 # Function to save summary to history
 def save_summary(summary):
