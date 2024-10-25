@@ -1,20 +1,26 @@
-# Use the official Python image as the base image
-FROM python:3.11-slim
+# Start with an official Python image
+FROM python:3.9-slim
 
-# Set the working directory in the container
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    LANG=C.UTF-8
+
+# Set the working directory
 WORKDIR /app
 
-# Copy the requirements.txt file into the container at /app
-COPY requirements.txt .
+# Copy requirements.txt to the container
+COPY requirements.txt /app/requirements.txt
 
-# Install the required packages
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies and download NLTK data
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    python -m nltk.downloader punkt
 
-# Copy the rest of the application code into the container
-COPY . .
+# Copy the entire app code to the container
+COPY . /app
 
-# Expose the port the app runs on
+# Expose the port on which Streamlit will run
 EXPOSE 8501
 
-# Define the command to run the app
-CMD ["streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Run the Streamlit app
+CMD ["streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.enableCORS=false"]
