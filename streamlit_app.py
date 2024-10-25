@@ -13,17 +13,11 @@ import xml.etree.ElementTree as ET
 import os
 from googletrans import Translator
 import re
-
-# Check if the 'punkt' tokenizer is downloaded
+# Ensure the required tokenizer is downloaded
 try:
     find("tokenizers/punkt")
 except LookupError:
     nltk.download("punkt")
-
-# Rest of your code...
-
-
-# Rest of your code...
 
 # List of languages with their ISO 639-1 codes
 languages = {
