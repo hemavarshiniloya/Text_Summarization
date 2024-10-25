@@ -9,6 +9,7 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import re
 import os
+from rake_nltk import Rake
 
 # List of languages with their ISO 639-1 codes
 languages = {
@@ -123,7 +124,7 @@ def text_summary(text):
 # Function to preprocess text
 def preprocess_text(text):
     text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
-    text = re.sub(r'[^A-Za -z0-9\s\.]+', '', text)  # Remove unwanted characters
+    text = re.sub(r'[^A-Za-z0-9\s\.]+', '', text)  # Remove unwanted characters
     return text
 
 # Function to translate text
@@ -181,10 +182,25 @@ def scrape_website(url):
         st.error(f"Error fetching URL: {str(e)}")
         return ""
 
+# Function to extract keywords
+def extract_keywords(text):
+    r = Rake()
+    r.extract_keywords_from_text(text)
+    keywords_with_scores = r.get_ranked_phrases_with_scores()
+    keywords = [phrase for score, phrase in keywords_with_scores]
+    return keywords
+
+# Function to highlight keywords in text
+def highlight_keywords(text, keywords):
+    highlighted_text = text
+    for keyword in keywords:
+        highlighted_text = highlighted_text.replace(keyword, f"<mark>{keyword}</mark>")  # Using <mark> to highlight
+    return highlighted_text
+
 # Main function
 def main():
-    st.title("📝 Text Summarization and Translation App")
-    st.write("This app can summarize text and translate it to various languages.")
+    st.title("📝 Text Summarization, Translation, and Keyword Extraction App")
+    st.write("This app can summarize text, translate it to various languages, and extract important keywords.")
 
     # Language selection in sidebar
     selected_language = st.sidebar.selectbox("🌐 Select a language to translate to", list(languages.keys()), index=0)
@@ -196,8 +212,8 @@ def main():
         # Text input
         text_input = st.text_area("✏️ Enter text to summarize and translate", height=200)
 
-        # Summarize and translate button
-        if st.button("✨ Summarize and Translate"):
+        # Summarize, translate, and extract keywords button
+        if st.button("✨ Summarize, Translate, and Extract Keywords"):
             if text_input:
                 # Preprocess text
                 text = preprocess_text(text_input)
@@ -208,9 +224,15 @@ def main():
                 # Translate summary
                 translated_summary = translate_text(summary, languages[selected_language])
 
+                # Extract keywords
+                keywords = extract_keywords(text)
+
+                # Highlight keywords in original text
+                highlighted_text = highlight_keywords(text_input, keywords)
+
                 # Display results
                 st.write("📝 Original Text:")
-                st.write(text_input)
+                st.write(highlighted_text, unsafe_allow_html=True)  # Allow HTML for highlighting
                 st.write("📄 Summary:")
                 st.write(summary)
                 st.write("🌍 Translated Summary:")
@@ -233,8 +255,8 @@ def main():
         # File uploader
         file_uploaded = st.file_uploader("📥 Upload a file (PDF, Word, XML, CSV)", type=["pdf", "docx", "xml", "csv"], accept_multiple_files=False)
 
-        # Summarize and translate button
-        if st.button("✨ Summarize and Translate"):
+        # Summarize, translate, and extract keywords button
+        if st.button("✨ Summarize, Translate, and Extract Keywords"):
             if file_uploaded:
                 if file_uploaded.name.endswith('.pdf'):
                     text = read_pdf(file_uploaded)
@@ -254,9 +276,15 @@ def main():
                 # Translate summary
                 translated_summary = translate_text(summary, languages[selected_language])
 
+                # Extract keywords
+                keywords = extract_keywords(text)
+
+                # Highlight keywords in original text
+                highlighted_text = highlight_keywords(text, keywords)
+
                 # Display results
                 st.write("📝 Original Text:")
-                st.write(text)
+                st.write(highlighted_text, unsafe_allow_html=True)  # Allow HTML for highlighting
                 st.write("📄 Summary:")
                 st.write(summary)
                 st.write("🌍 Translated Summary:")
@@ -277,10 +305,10 @@ def main():
 
     elif input_type == "URL":
         # URL input
-        url_input = st.text_input("🌐 Enter URL to summarize")
+        url_input = st.text_input("🔗 Enter a URL")
 
-        # Summarize and translate button
-        if st.button("✨ Summarize and Translate"):
+        # Summarize, translate, and extract keywords button
+        if st.button("✨ Summarize, Translate, and Extract Keywords"):
             if url_input:
                 text = scrape_website(url_input)
 
@@ -293,9 +321,15 @@ def main():
                 # Translate summary
                 translated_summary = translate_text(summary, languages[selected_language])
 
+                # Extract keywords
+                keywords = extract_keywords(text)
+
+                # Highlight keywords in original text
+                highlighted_text = highlight_keywords(text, keywords)
+
                 # Display results
-                st.write("📝 Scraped Text:")
-                st.write(text)
+                st.write("📝 Original Text:")
+                st.write(highlighted_text, unsafe_allow_html=True)  # Allow HTML for highlighting
                 st.write("📄 Summary:")
                 st.write(summary)
                 st.write("🌍 Translated Summary:")
@@ -306,7 +340,7 @@ def main():
                 save_button = st.button("Save as Text File")
                 if save_button:
                     with open("results.txt", "w") as f:
-                        f.write("Scraped Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
+                        f.write("Original Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
                     st.write("Results saved to results.txt")
 
                 # Clear input
