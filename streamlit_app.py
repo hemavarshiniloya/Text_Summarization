@@ -145,6 +145,9 @@ def main():
     if 'clipboard_text' not in st.session_state:
         st.session_state.clipboard_text = ""
 
+    # Ensure NLTK data is available
+    ensure_nltk_data()
+
     # Handle choice selection
     choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
 
