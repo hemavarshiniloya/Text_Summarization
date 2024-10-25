@@ -14,7 +14,7 @@ COPY requirements.txt /app/requirements.txt
 # Install dependencies and download NLTK data
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
-    python -m nltk.downloader punkt
+    python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
 
 # Copy the entire app code to the container
 COPY . /app
