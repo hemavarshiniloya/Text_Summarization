@@ -1,6 +1,6 @@
 import streamlit as st
 import nltk
-from textblob import TextBlob
+from textblob import TextBlob, download_corpora
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -24,7 +24,6 @@ def download_nltk_data():
 def download_textblob_data():
     """Download necessary TextBlob data."""
     try:
-        from textblob import download_corpora
         download_corpora.download_all()
     except Exception as e:
         st.error(f"An error occurred while downloading TextBlob data: {str(e)}")
@@ -93,12 +92,15 @@ def extract_text_from_xml(file):
 
 def summarize_text(text, num_sentences=3):
     """Summarize the given text using TextBlob."""
-    blob = TextBlob(text)
-    sentences = blob.sentences
-    # Extract sentences with the most noun phrases as a simple summarization
-    sorted_sentences = sorted(sentences, key=lambda s: len(s.noun_phrases), reverse=True)
-    summary = ' '.join(str(sentence) for sentence in sorted_sentences[:num_sentences])
-    return summary
+    try:
+        blob = TextBlob(text)
+        sentences = blob.sentences
+        sorted_sentences = sorted(sentences, key=lambda s: len(s.noun_phrases), reverse=True)
+        summary = ' '.join(str(sentence) for sentence in sorted_sentences[:num_sentences])
+        return summary
+    except Exception as e:
+        st.error(f"An error occurred during summarization: {str(e)}")
+        return ""
 
 def main():
     st.title("Text Summarization App")
