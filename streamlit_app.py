@@ -6,39 +6,72 @@ from bs4 import BeautifulSoup
 import PyPDF2
 from docx import Document
 import io
+import subprocess
+import sys
 
-# Initialize NLTK downloads
+# Initialize NLTK and TextBlob data
 @st.cache_resource
-def download_nltk_data():
+def initialize_nlp():
+    """Download required NLTK and TextBlob data."""
     try:
+        # Download NLTK data
         nltk.download('punkt')
         nltk.download('averaged_perceptron_tagger')
         nltk.download('wordnet')
         nltk.download('omw-1.4')
+        
+        # Download TextBlob corpora
+        subprocess.check_call([
+            sys.executable, 
+            "-m", 
+            "textblob.download_corpora"
+        ])
+        return True
     except Exception as e:
-        st.error(f"Error downloading NLTK data: {str(e)}")
+        st.error(f"Error initializing NLP resources: {str(e)}")
+        return False
 
 # Text summarization function
 def summarize_text(text, num_sentences=3):
+    """Summarize the given text."""
     try:
+        # Create TextBlob object
         blob = TextBlob(text)
-        # Get sentences and sort by importance (length of noun phrases)
+        
+        # Get sentences
         sentences = blob.sentences
-        sentence_scores = [(sentence, len(sentence.noun_phrases)) for sentence in sentences]
+        
+        if not sentences:
+            return "No sentences found in the text."
+        
+        # Calculate sentence scores based on noun phrases
+        sentence_scores = []
+        for sentence in sentences:
+            # Get noun phrases
+            noun_phrases = sentence.noun_phrases
+            score = len(noun_phrases)
+            sentence_scores.append((sentence, score))
+        
+        # Sort sentences by score
         sentence_scores.sort(key=lambda x: x[1], reverse=True)
         
         # Select top sentences
-        summary_sentences = [s[0] for s in sentence_scores[:num_sentences]]
-        # Sort by original position
-        summary_sentences.sort(key=lambda s: sentences.index(s))
+        top_sentences = [s[0] for s in sentence_scores[:num_sentences]]
         
-        return ' '.join(str(s) for s in summary_sentences)
+        # Sort sentences by their original position
+        top_sentences.sort(key=lambda s: sentences.index(s))
+        
+        # Join sentences
+        summary = ' '.join(str(sentence) for sentence in top_sentences)
+        return summary
+    
     except Exception as e:
         st.error(f"Summarization error: {str(e)}")
         return ""
 
 # URL text extraction
 def extract_text_from_url(url):
+    """Extract text from URL."""
     try:
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -50,6 +83,7 @@ def extract_text_from_url(url):
 
 # PDF text extraction
 def extract_text_from_pdf(file):
+    """Extract text from PDF."""
     try:
         pdf_reader = PyPDF2.PdfReader(file)
         text = ''
@@ -62,6 +96,7 @@ def extract_text_from_pdf(file):
 
 # DOCX text extraction
 def extract_text_from_docx(file):
+    """Extract text from DOCX."""
     try:
         doc = Document(file)
         text = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
@@ -70,8 +105,9 @@ def extract_text_from_docx(file):
         st.error(f"DOCX extraction error: {str(e)}")
         return ""
 
-# Save summary as text file
+# Save summary
 def save_summary(summary, filename="summary.txt"):
+    """Save summary to file."""
     try:
         btn = st.download_button(
             label="Download Summary",
@@ -85,8 +121,11 @@ def save_summary(summary, filename="summary.txt"):
 def main():
     st.title("Text Summarization App")
     
-    # Download NLTK data
-    download_nltk_data()
+    # Initialize NLP resources
+    with st.spinner("Initializing NLP resources..."):
+        if not initialize_nlp():
+            st.error("Failed to initialize NLP resources. Please try reloading the app.")
+            return
     
     # Input method selection
     input_method = st.radio("Choose input method:", 
