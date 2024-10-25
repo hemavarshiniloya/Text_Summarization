@@ -6,11 +6,13 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from collections import Counter
+from transformers import pipeline
 
 class TextSummarizer:
-    def __init__(self):
-        pass
-        
+    def __init__(self, language='english'):
+        self.language = language
+        self.summarizer = pipeline("summarization", model="facebook/bart-large-cnn" if language == 'english' else "google/mt5-small")
+
     def preprocess_text(self, text):
         text = text.lower()
         text = re.sub(r'\s+', ' ', text)
@@ -21,41 +23,11 @@ class TextSummarizer:
         sentences = re.split(r'[.!?]+', text)
         return [sent.strip() for sent in sentences if sent.strip()]
     
-    def get_word_frequency(self, text):
-        common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
-        words = text.split()
-        word_freq = Counter()
-        
-        for word in words:
-            if word not in common_words:
-                word_freq[word] += 1
-                
-        return word_freq
-    
-    def score_sentences(self, sentences, word_freq):
-        sentence_scores = {}
-        for sentence in sentences:
-            words = sentence.split()
-            score = sum(word_freq.get(word, 0) for word in words)
-            sentence_scores[sentence] = score
-        return sentence_scores
-    
     def summarize(self, text, num_sentences=3):
         try:
             cleaned_text = self.preprocess_text(text)
-            sentences = self.get_sentences(cleaned_text)
-            
-            if not sentences:
-                return "Could not generate summary. Text too short or invalid."
-            
-            num_sentences = min(num_sentences, len(sentences))
-            word_freq = self.get_word_frequency(cleaned_text)
-            sentence_scores = self.score_sentences(sentences, word_freq)
-            top_sentences = sorted(sentence_scores.items(), key=lambda x: x[1], reverse=True)[:num_sentences]
-            summary = '. '.join(sent for sent, score in top_sentences)
-            
-            return summary.capitalize() + '.'
-            
+            summary = self.summarizer(cleaned_text, max_length=130, min_length=30, do_sample=False)
+            return summary[0]['summary_text']
         except Exception as e:
             return f"An error occurred while summarizing: {str(e)}"
 
@@ -115,17 +87,18 @@ def extract_text_from_url(url):
 
 def main():
     st.set_page_config(
-        page_title="Summizares",
+        page_title="Summarizer",
         page_icon="📚",
         layout="wide"
     )
 
-    st.title("📚 Summizares")
+    st.title("📚 Summarizer")
     st.write("Upload multiple documents (PDF, DOCX, TXT, XLSX), input text directly, or enter a URL to generate summaries.")
 
-    summarizer = TextSummarizer()
+    language = st.selectbox("Select Language for Summarization:", ["english", "spanish", "french", "german"])  # Add more languages as needed
+    summarizer = TextSummarizer(language)
 
-    uploaded_files = st.file_uploader("Upload documents (PDF, DOCX, TXT, XLSX)", type=['pdf', 'docx', 'txt', 'xlsx'], accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Upload documents (PDF, DOCX, TXT, XLSX)", type=['pdf', 'docx', 'txt', 'xlsx'], accept_multiple _files=True)
     input_text = st.text_area("Input text directly:")
     input_url = st.text_input("Enter a URL:")
 
