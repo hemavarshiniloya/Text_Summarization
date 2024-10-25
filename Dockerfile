@@ -1,20 +1,20 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+# Use the official Python image from the Docker Hub
+FROM python:3.11-slim
 
-# Set the working directory
+# Set the working directory in the container
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
-COPY . /app
+# Copy the requirements file into the container
+COPY requirements.txt .
 
-# Install any needed packages specified in requirements.txt
+# Install the required packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Make port 8501 available to the world outside this container
+# Copy the rest of your application code into the container
+COPY . .
+
+# Expose the port that Streamlit runs on
 EXPOSE 8501
 
-# Define environment variable
-ENV PYTHONUNBUFFERED=1
-
-# Run the app when the container launches
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.enableCORS=false"]
+# Command to run the application
+CMD ["streamlit", "run", "your_streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
