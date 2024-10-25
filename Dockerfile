@@ -25,6 +25,9 @@ RUN python -c "import nltk; \
     nltk.download('wordnet'); \
     nltk.download('omw-1.4')"
 
+# Download TextBlob corpora
+RUN python -m textblob.download_corpora
+
 # Copy the application code
 COPY . .
 
