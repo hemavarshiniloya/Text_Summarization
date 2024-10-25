@@ -16,6 +16,11 @@ import re
 
 # Download necessary NLTK data files
 nltk.download("punkt", quiet=True)
+# Download necessary NLTK resources
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('stopwords')
+
 
 # Ensure the required tokenizer is downloaded
 try:
@@ -110,13 +115,12 @@ languages = {
 # Set page configuration
 st.set_page_config(layout="wide")
 
-# Function to summarize text
-def text_summary(text, max_sentences=3):
-    # Create a parser for the input text
+def text_summary(text, max_sentences):
+    # Ensure NLTK resources are downloaded
+    import nltk
+    nltk.download('punkt', quiet=True)
+
     parser = PlaintextParser.from_string(text, Tokenizer("english"))
-    
-    # Use LSA Summarizer
-    summarizer = LsaSummarizer()
     
     # Generate the summary
     summary = summarizer(parser.document, max_sentences)
