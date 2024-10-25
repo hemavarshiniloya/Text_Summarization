@@ -4,6 +4,7 @@ from nltk.data import find
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.text_rank import TextRankSummarizer
+from sumy.summarizers.lsa import LsaSummarizer
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -13,8 +14,9 @@ import xml.etree.ElementTree as ET
 import os
 from googletrans import Translator
 import re
-import nltk
-nltk.download("punkt", quiet=True)  # Download tokenizer
+
+# Download necessary NLTK data files
+nltk.download("punkt", quiet=True)
 
 # Ensure the required tokenizer is downloaded
 try:
@@ -42,7 +44,6 @@ languages = {
     "Czech": "cs",
     "Danish": "da",
     "Dutch": "nl",
-    "English": "en",
     "Estonian": "et",
     "Finnish": "fi",
     "French": "fr",
@@ -110,12 +111,21 @@ languages = {
 # Set page configuration
 st.set_page_config(layout="wide")
 
-# Initialize text summarizer
-def text_summary(text, maxlength=None):
+# Initialize text summarizer functions
+def text_summary(text, max_sentences=3, algorithm='text_rank'):
+    # Create a parser for the input text
     parser = PlaintextParser.from_string(text, Tokenizer("english"))
-    summarizer = TextRankSummarizer()  # Using TextRank summarizer
-    summary = summarizer(parser.document, maxlength)  # Length is in sentences
-    return ' '.join(str(sentence) for sentence in summary)
+    
+    if algorithm == 'text_rank':
+        summarizer = TextRankSummarizer()
+    elif algorithm == 'lsa':
+        summarizer = LsaSummarizer()
+    
+    # Generate the summary
+    summary = summarizer(parser.document, max_sentences)
+    
+    # Convert summary to string
+    return " ".join(str(sentence) for sentence in summary)
 
 # Function to preprocess text
 def preprocess_text(text):
@@ -225,7 +235,10 @@ def download_file(content, filename):
 # Main function to run the Streamlit app
 def main():
     st.title("Text Summarization App")
-
+    
+    # Summarization algorithm selection
+    algorithm = st.sidebar.selectbox("Select Summarization Algorithm", ["TextRank", "LSA"])
+    
     # Language selection
     selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
 
@@ -242,102 +255,104 @@ def main():
     if 'clipboard_text' not in st.session_state:
         st.session_state.clipboard_text = ""
 
-    # Handle each choice
+    # Text Summarization Section
     if choice == "Summarize Text":
-        st.session_state.text = st.text_area("Enter Text", st.session_state.text)
-        maxlength = st.slider("Maximum Summary Length (sentences)", 1, 10, 5)
-
+        st.session_state.text = st.text_area("Enter your text here:", st.session_state.text)
+        max_sentences = st.number_input("Select number of sentences in summary:", min_value=1, max_value=10, value=3)
+        
         if st.button("Summarize"):
             if validate_input(st.session_state.text):
-                preprocessed_text = preprocess_text(st.session_state.text)
-                summary = text_summary(preprocessed_text, maxlength)
-                st.write("Summary:")
+                summary = text_summary(st.session_state.text, max_sentences, 'text_rank' if algorithm == 'TextRank' else 'lsa')
+                st.subheader("Summary:")
                 st.write(summary)
                 save_summary(summary)
+                download_file(summary, "summary.txt")
             else:
                 st.error("Please enter some text to summarize.")
 
     elif choice == "Summarize URL":
         st.session_state.url = st.text_input("Enter URL", st.session_state.url)
 
-        if st.button("Extract and Summarize"):
+        if st.button("Summarize URL"):
             if validate_input(st.session_state.url):
-                extracted_text = extract_text_from_url(st.session_state.url)
-                preprocessed_text = preprocess_text(extracted_text)
-                summary = text_summary(preprocessed_text)
-                st.write("Summary:")
-                st.write(summary)
-                save_summary(summary)
+                text = extract_text_from_url(st.session_state.url)
+                if text:
+                    summary = text_summary(text, max_sentences, 'text_rank' if algorithm == 'TextRank' else 'lsa')
+                    st.subheader("Summary:")
+                    st.write(summary)
+                    save_summary(summary)
+                    download_file(summary, "summary.txt")
+                else:
+                    st.warning("No text extracted from the URL.")
             else:
-                st.error("Please enter a valid URL.")
+                st.warning("Please enter a valid URL.")
 
     elif choice == "Summarize Document":
-        uploaded_files = st.file_uploader("Upload Document", type=["txt", "pdf", "docx", "csv", "xml", "html"], accept_multiple_files=True)
-        st.session_state.uploaded_files = uploaded_files if uploaded_files else st.session_state.uploaded_files
+        uploaded_files = st.file_uploader("Choose files", type=["pdf", "docx", "txt", "html", "csv", "xml"], accept_multiple_files=True)
 
-        if st.button("Summarize Documents"):
-            all_text = ""
-            for uploaded_file in st.session_state.uploaded_files:
-                if uploaded_file.type == "application/pdf":
-                    all_text += extract_text_from_pdf(uploaded_file)
-                elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                    all_text += extract_text_from_docx(uploaded_file)
-                elif uploaded_file.type == "text/plain":
-                    all_text += extract_text_from_txt(uploaded_file)
-                elif uploaded_file.type == "text/html":
-                    all_text += extract_text_from_html(uploaded_file)
-                elif uploaded_file.type == "text/csv":
-                    all_text += extract_text_from_csv(uploaded_file)
-                elif uploaded_file.type == "application/xml":
-                    all_text += extract_text_from_xml(uploaded_file)
+        if uploaded_files:
+            for file in uploaded_files:
+                if file.name.endswith(".pdf"):
+                    text = extract_text_from_pdf(file)
+                elif file.name.endswith(".docx"):
+                    text = extract_text_from_docx(file)
+                elif file.name.endswith(".txt"):
+                    text = extract_text_from_txt(file)
+                elif file.name.endswith(".html"):
+                    text = extract_text_from_html(file)
+                elif file.name.endswith(".csv"):
+                    text = extract_text_from_csv(file)
+                elif file.name.endswith(".xml"):
+                    text = extract_text_from_xml(file)
 
-            if all_text:
-                preprocessed_text = preprocess_text(all_text)
-                summary = text_summary(preprocessed_text)
-                st.write("Summary:")
-                st.write(summary)
-                save_summary(summary)
-            else:
-                st.error("No text found in the uploaded documents.")
+                if text:
+                    st.write(f"Text extracted from {file.name}:")
+                    st.write(text)
+                    summary = text_summary(text, max_sentences, 'text_rank' if algorithm == 'TextRank' else 'lsa')
+                    st.subheader("Summary:")
+                    st.write(summary)
+                    save_summary(summary)
+                    download_file(summary, f"{file.name}_summary.txt")
 
     elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Text from Clipboard", st.session_state.clipboard_text)
+        st.session_state.clipboard_text = st.text_area("Paste your text here", st.session_state.clipboard_text)
 
         if st.button("Summarize Clipboard Text"):
             if validate_input(st.session_state.clipboard_text):
-                preprocessed_text = preprocess_text(st.session_state.clipboard_text)
-                summary = text_summary(preprocessed_text)
-                st.write("Summary:")
+                summary = text_summary(st.session_state.clipboard_text, max_sentences, 'text_rank' if algorithm == 'TextRank' else 'lsa')
+                st.subheader("Summary:")
                 st.write(summary)
                 save_summary(summary)
+                download_file(summary, "clipboard_summary.txt")
             else:
-                st.error("Clipboard text is empty.")
+                st.warning("Please enter valid text.")
 
-    # Translation feature
-    if st.button("Translate Summary"):
-        if 'summary' in locals():
-            translated_summary = translate_text(summary, languages[selected_language])
-            st.write("Translated Summary:")
-            st.write(translated_summary)
-        else:
-            st.error("Please summarize text before translating.")
-
-    # Summary history
-    if st.sidebar.button("Show Summary History"):
-        history = load_summary_history()
-        if history:
-            st.sidebar.text_area("Summary History", history, height=300)
+    # Summary History Section
+    if st.sidebar.checkbox("Show Summary History"):
+        summary_history = load_summary_history()
+        if summary_history:
+            st.sidebar.subheader("Summary History")
+            st.sidebar.text_area("Previous Summaries", summary_history, height=200)
         else:
             st.sidebar.write("No summary history available.")
 
-    # Clear summary history
     if st.sidebar.button("Clear Summary History"):
         clear_summary_history()
-        st.sidebar.write("Summary history cleared.")
+        st.sidebar.success("Summary history cleared.")
 
-    # Clear inputs based on choice
-    if st.sidebar.button("Clear Input"):
-        clear_input(choice)
+    # Translation Feature
+    st.sidebar.subheader("Translate Summary")
+    translate_text_input = st.text_area("Text to Translate")
+    target_language = st.sidebar.selectbox("Select Target Language", options=list(languages.keys()), index=0)
 
+    if st.sidebar.button("Translate"):
+        if validate_input(translate_text_input):
+            translated_summary = translate_text(translate_text_input, languages[target_language])
+            st.sidebar.write("Translated Summary:")
+            st.sidebar.write(translated_summary)
+        else:
+            st.sidebar.warning("Please enter text to translate.")
+
+# Run the app
 if __name__ == "__main__":
     main()
