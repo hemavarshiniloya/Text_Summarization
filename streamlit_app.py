@@ -119,7 +119,7 @@ def text_summary(text, max_sentences):
     ensure_nltk_data()
 
     # Use the Tokenizer after ensuring NLTK data is present
-    tokenizer = Tokenizer()  # Use the default tokenizer
+    tokenizer = Tokenizer("english")  # Use the default tokenizer
     parser = PlaintextParser.from_string(text, tokenizer)
     summarizer = LsaSummarizer()
     summary = summarizer(parser.document, max_sentences)
