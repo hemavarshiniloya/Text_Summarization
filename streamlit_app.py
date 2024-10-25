@@ -30,7 +30,7 @@ def text_summary(text, max_sentences):
 
     # Ensure NLTK data is available
     ensure_nltk_data()
-    
+
     # Use the Tokenizer after ensuring NLTK data is present
     tokenizer = Tokenizer("english")
     parser = PlaintextParser.from_string(text, tokenizer)
@@ -156,15 +156,18 @@ def main():
         if st.button("Summarize"):
             if validate_input(st.session_state.text):
                 preprocessed_text = preprocess_text(st.session_state.text)
-                summary = text_summary(preprocessed_text, max_sentences)
-                st.write("### Summary")
-                st.write(summary)
+                try:
+                    summary = text_summary(preprocessed_text, max_sentences)
+                    st.write("### Summary")
+                    st.write(summary)
 
-                # Save summary to history
-                save_summary(summary)
+                    # Save summary to history
+                    save_summary(summary)
 
-                # Download summary
-                download_file(summary, "summary.txt")
+                    # Download summary
+                    download_file(summary, "summary.txt")
+                except Exception as e:
+                    st.error(f"An error occurred during summarization: {str(e)}")
             else:
                 st.error("Please enter valid text.")
 
@@ -179,15 +182,18 @@ def main():
             if st.session_state.url:
                 text_from_url = extract_text_from_url(st.session_state.url)
                 if validate_input(text_from_url):
-                    summary = text_summary(text_from_url, 2)
-                    st.write("### Summary")
-                    st.write(summary)
+                    try:
+                        summary = text_summary(text_from_url, 2)
+                        st.write("### Summary")
+                        st.write(summary)
 
-                    # Save summary to history
-                    save_summary(summary)
+                        # Save summary to history
+                        save_summary(summary)
 
-                    # Download summary
-                    download_file(summary, "summary.txt")
+                        # Download summary
+                        download_file(summary, "summary.txt")
+                    except Exception as e:
+                        st.error(f"An error occurred during summarization: {str(e)}")
                 else:
                     st.error("No text found at the provided URL.")
             else:
@@ -218,15 +224,18 @@ def main():
                         all_text += extract_text_from_xml(uploaded_file)
 
                 if validate_input(all_text):
-                    summary = text_summary(all_text, 2)
-                    st.write("### Summary")
-                    st.write(summary)
+                    try:
+                        summary = text_summary(all_text, 2)
+                        st.write("### Summary")
+                        st.write(summary)
 
-                    # Save summary to history
-                    save_summary(summary)
+                        # Save summary to history
+                        save_summary(summary)
 
-                    # Download summary
-                    download_file(summary, "summary.txt")
+                        # Download summary
+                        download_file(summary, "summary.txt")
+                    except Exception as e:
+                        st.error(f"An error occurred during summarization: {str(e)}")
                 else:
                     st.error("No text found in the uploaded documents.")
             else:
@@ -237,20 +246,24 @@ def main():
 
     # Clipboard Summarization Section
     elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Paste your clipboard text here:", value=st.session_state.clipboard_text, height=300)
+        st.session_state.clipboard_text = st.text_area("Paste text from clipboard here:", value=st.session_state.clipboard_text, height=300)
+        max_sentences = st.number_input("Maximum number of sentences for summary", min_value=1, value=2, step=1)
 
         if st.button("Summarize"):
             if validate_input(st.session_state.clipboard_text):
                 preprocessed_text = preprocess_text(st.session_state.clipboard_text)
-                summary = text_summary(preprocessed_text, 2)
-                st.write("### Summary")
-                st.write(summary)
+                try:
+                    summary = text_summary(preprocessed_text, max_sentences)
+                    st.write("### Summary")
+                    st.write(summary)
 
-                # Save summary to history
-                save_summary(summary)
+                    # Save summary to history
+                    save_summary(summary)
 
-                # Download summary
-                download_file(summary, "summary.txt")
+                    # Download summary
+                    download_file(summary, "summary.txt")
+                except Exception as e:
+                    st.error(f"An error occurred during summarization: {str(e)}")
             else:
                 st.error("Please enter valid text.")
 
