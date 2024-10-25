@@ -40,8 +40,8 @@ def text_summary(text, max_sentences):
 
 def preprocess_text(text):
     """Preprocess the input text."""
-    text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'[^\w\s]', '', text)
+    text = re.sub(r'\s+', ' ', text)  # Remove extra whitespace
+    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
     return text.strip()
 
 def extract_text_from_url(url):
@@ -257,19 +257,18 @@ def main():
         if st.button("Clear Input"):
             clear_input("Summarize Text from Clipboard")
 
-    # Display summary history
-    if st.sidebar.button("Show Summary History"):
-        history = load_summary_history()
-        if history:
-            st.sidebar.write("### Summary History")
-            st.sidebar.text_area("Previous Summaries", value=history, height=300)
+    # Summary History Section
+    if st.sidebar.checkbox("Show Summary History"):
+        summary_history = load_summary_history()
+        if summary_history:
+            st.write("### Summary History")
+            st.write(summary_history)
         else:
-            st.sidebar.write("No summary history available.")
+            st.write("No summaries found.")
 
     if st.sidebar.button("Clear Summary History"):
         clear_summary_history()
-        st.sidebar.success("Summary history cleared.")
+        st.success("Summary history cleared.")
 
 if __name__ == "__main__":
     main()
-
