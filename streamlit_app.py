@@ -12,8 +12,10 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import os
 import re
+
 # Ensure NLTK data is downloaded
 def ensure_nltk_data():
+    """Ensure NLTK tokenizer resources are downloaded."""
     try:
         nltk.data.find("tokenizers/punkt")
     except LookupError:
@@ -31,19 +33,11 @@ def text_summary(text, max_sentences):
     ensure_nltk_data()
 
     # Use the Tokenizer after ensuring NLTK data is present
-    tokenizer = Tokenizer("english")
+    tokenizer = Tokenizer()  # Use the default tokenizer
     parser = PlaintextParser.from_string(text, tokenizer)
     summarizer = LsaSummarizer()
     summary = summarizer(parser.document, max_sentences)
     return " ".join(str(sentence) for sentence in summary)
-
- # Ensure NLTK data is downloaded
-def ensure_nltk_data():
-       """Ensure NLTK tokenizer resources are downloaded."""
-       try:
-           nltk.data.find("tokenizers/punkt")
-       except LookupError:
-           nltk.download("punkt", quiet=True)  # Download 'punkt' quietly
 
 def preprocess_text(text):
     """Preprocess the input text."""
@@ -257,12 +251,13 @@ def main():
     # Clipboard Summarization Section
     elif choice == "Summarize Text from Clipboard":
         st.session_state.clipboard_text = st.text_area("Paste text from clipboard here:", value=st.session_state.clipboard_text, height=300)
+        max_sentences = st.number_input("Maximum number of sentences for summary", min_value=1, value=2, step=1)
 
         if st.button("Summarize"):
             if validate_input(st.session_state.clipboard_text):
                 preprocessed_text = preprocess_text(st.session_state.clipboard_text)
                 try:
-                    summary = text_summary(preprocessed_text, 2)
+                    summary = text_summary(preprocessed_text, max_sentences)
                     st.write("### Summary")
                     st.write(summary)
 
@@ -274,19 +269,21 @@ def main():
                 except Exception as e:
                     st.error(f"An error occurred during summarization: {str(e)}")
             else:
-                st.error("Please paste valid text.")
+                st.error("Please enter valid text.")
 
         if st.button("Clear Input"):
             clear_input("Summarize Text from Clipboard")
 
-    # Summary History Section
-    if st.sidebar.button("Show Summary History"):
+    # Display Summary History
+    if st.sidebar.checkbox("Show Summary History"):
         history = load_summary_history()
         if history:
-            st.sidebar.text_area("Summary History", history, height=300)
+            st.sidebar.write("### Summary History")
+            st.sidebar.text_area("Previous Summaries", value=history, height=300)
         else:
-            st.sidebar.write("No summary history available.")
+            st.sidebar.write("No summaries found in history.")
 
+    # Clear Summary History
     if st.sidebar.button("Clear Summary History"):
         clear_summary_history()
         st.sidebar.success("Summary history cleared.")
