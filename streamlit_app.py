@@ -6,50 +6,54 @@ from bs4 import BeautifulSoup
 import PyPDF2
 import docx
 
-# Download necessary NLTK data if not already present
+# Function to download necessary NLTK data if not already present
 def download_nltk_data():
     """Download required NLTK data for TextBlob."""
-    try:
-        nltk.data.find('corpora/wordnet')
-    except LookupError:
-        nltk.download('wordnet')
+    nltk_packages = ['wordnet', 'omw-1.4', 'punkt']
+    for package in nltk_packages:
+        try:
+            nltk.data.find(f'corpora/{package}')
+        except LookupError:
+            nltk.download(package)
 
-    try:
-        nltk.data.find('corpora/omw-1.4')
-    except LookupError:
-        nltk.download('omw-1.4')
-
-    try:
-        nltk.data.find('tokenizers/punkt')
-    except LookupError:
-        nltk.download('punkt')
-
-# Extract text from a given URL
+# Function to extract text from a given URL
 def extract_text_from_url(url):
     """Extract text from a given URL."""
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    return ' '.join(p.get_text() for p in soup.find_all('p'))
+    try:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        return ' '.join(p.get_text() for p in soup.find_all('p'))
+    except Exception as e:
+        st.error(f"Error fetching URL: {e}")
+        return ""
 
-# Extract text from PDF
+# Function to extract text from a PDF file
 def extract_text_from_pdf(file):
     """Extract text from a PDF file."""
-    reader = PyPDF2.PdfReader(file)
-    text = ''
-    for page in reader.pages:
-        text += page.extract_text()
-    return text
+    try:
+        reader = PyPDF2.PdfReader(file)
+        text = ''
+        for page in reader.pages:
+            text += page.extract_text() or ''
+        return text
+    except Exception as e:
+        st.error(f"Error reading PDF file: {e}")
+        return ""
 
-# Extract text from Word document
+# Function to extract text from a Word document
 def extract_text_from_docx(file):
     """Extract text from a Word document."""
-    doc = docx.Document(file)
-    text = ''
-    for paragraph in doc.paragraphs:
-        text += paragraph.text + '\n'
-    return text
+    try:
+        doc = docx.Document(file)
+        text = ''
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + '\n'
+        return text
+    except Exception as e:
+        st.error(f"Error reading Word document: {e}")
+        return ""
 
-# Summarize the given text using TextBlob
+# Function to summarize the given text using TextBlob
 def summarize_text(text, num_sentences=3):
     """Summarize the given text using TextBlob."""
     download_nltk_data()  # Ensure required NLTK data is downloaded
@@ -74,6 +78,8 @@ def main():
                 summary = summarize_text(input_text, num_sentences)
                 st.write("### Summary")
                 st.write(summary)
+            else:
+                st.warning("Please enter some text to summarize.")
 
     elif choice == "Summarize URL":
         url = st.text_input("Enter URL:")
@@ -88,6 +94,8 @@ def main():
                     st.write(summary)
                 else:
                     st.write("No text found at the provided URL.")
+            else:
+                st.warning("Please enter a URL to summarize.")
 
     elif choice == "Summarize Document":
         uploaded_file = st.file_uploader("Upload a PDF or Word document", type=["pdf", "docx"])
@@ -106,6 +114,8 @@ def main():
                     st.write(summary)
                 else:
                     st.write("No text found in the uploaded document.")
+            else:
+                st.warning("Please upload a document to summarize.")
 
 if __name__ == "__main__":
     main()
