@@ -1,157 +1,163 @@
 import streamlit as st
-from textblob import TextBlob
+import spacy
 import requests
 from bs4 import BeautifulSoup
 import PyPDF2
 import docx
-import nltk
-import os
+from collections import Counter
+from heapq import nlargest
+import io
+
+# Load spaCy model
+@st.cache_resource
+def load_spacy_model():
+    return spacy.load("en_core_web_sm")
 
 class TextSummarizer:
     def __init__(self):
-        self.initialize_nlp()
+        self.nlp = load_spacy_model()
 
-    @staticmethod
-    def initialize_nlp():
-        """Initialize NLTK and TextBlob data"""
-        required_nltk_data = ['punkt', 'averaged_perceptron_tagger', 'brown', 'wordnet', 'omw-1.4']
-        for item in required_nltk_data:
-            try:
-                nltk.data.find(f'tokenizers/{item}')
-            except LookupError:
-                nltk.download(item)
-
-    def extract_text_from_url(self, url):
-        """Extract text from a given URL"""
-        try:
-            response = requests.get(url)
-            soup = BeautifulSoup(response.content, 'html.parser')
-            return ' '.join(p.get_text() for p in soup.find_all('p'))
-        except Exception as e:
-            st.error(f"Error fetching URL: {e}")
-            return ""
-
-    def extract_text_from_pdf(self, file):
-        """Extract text from a PDF file"""
-        try:
-            reader = PyPDF2.PdfReader(file)
-            return ' '.join(page.extract_text() or '' for page in reader.pages)
-        except Exception as e:
-            st.error(f"Error reading PDF file: {e}")
-            return ""
-
-    def extract_text_from_docx(self, file):
-        """Extract text from a Word document"""
-        try:
-            doc = docx.Document(file)
-            return '\n'.join(paragraph.text for paragraph in doc.paragraphs)
-        except Exception as e:
-            st.error(f"Error reading Word document: {e}")
-            return ""
-
-    def summarize_text(self, text, num_sentences=3):
-        """Summarize the given text"""
-        try:
-            blob = TextBlob(text)
-            sentences = blob.sentences
-            # Sort sentences by importance (number of noun phrases)
-            sorted_sentences = sorted(sentences, key=lambda s: len(s.noun_phrases), reverse=True)
-            return ' '.join(str(sentence) for sentence in sorted_sentences[:num_sentences])
-        except Exception as e:
-            st.error(f"Error summarizing text: {e}")
-            return ""
-
-class StreamlitApp:
-    def __init__(self):
-        self.summarizer = TextSummarizer()
-
-    def run(self):
-        st.title("Text Summarization App")
+    def summarize(self, text, num_sentences=3):
+        # Preprocess and clean the text
+        doc = self.nlp(text)
         
-        choice = st.sidebar.radio(
-            "Choose an option",
-            ["Summarize Text", "Summarize URL", "Summarize Document"]
-        )
+        # Calculate word frequencies
+        word_freq = Counter()
+        for word in doc:
+            if not word.is_stop and not word.is_punct and word.text.strip():
+                word_freq[word.text.lower()] += 1
 
-        if choice == "Summarize Text":
-            self.text_summarization()
-        elif choice == "Summarize URL":
-            self.url_summarization()
-        elif choice == "Summarize Document":
-            self.document_summarization()
+        # Normalize frequencies
+        max_freq = max(word_freq.values()) if word_freq else 1
+        normalized_freq = {word: freq/max_freq for word, freq in word_freq.items()}
 
-    def text_summarization(self):
-        input_text = st.text_area("Enter your text here:", height=300)
-        num_sentences = st.number_input(
-            "Number of sentences for summary:",
-            min_value=1,
-            max_value=10,
-            value=3
-        )
+        # Score sentences
+        sent_strength = {}
+        for sent in doc.sents:
+            for word in sent:
+                if word.text.lower() in normalized_freq:
+                    if sent in sent_strength:
+                        sent_strength[sent] += normalized_freq[word.text.lower()]
+                    else:
+                        sent_strength[sent] = normalized_freq[word.text.lower()]
 
-        if st.button("Summarize"):
-            if input_text:
+        # Get top sentences
+        summarized_sentences = nlargest(num_sentences, sent_strength, key=sent_strength.get)
+        summary = ' '.join([str(sent) for sent in summarized_sentences])
+        
+        return summary
+
+def extract_text_from_url(url):
+    try:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        paragraphs = soup.find_all('p')
+        return ' '.join([p.get_text() for p in paragraphs])
+    except Exception as e:
+        st.error(f"Error extracting text from URL: {str(e)}")
+        return None
+
+def extract_text_from_pdf(pdf_file):
+    try:
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return text
+    except Exception as e:
+        st.error(f"Error extracting text from PDF: {str(e)}")
+        return None
+
+def extract_text_from_docx(docx_file):
+    try:
+        doc = docx.Document(docx_file)
+        text = ""
+        for para in doc.paragraphs:
+            text += para.text + "\n"
+        return text
+    except Exception as e:
+        st.error(f"Error extracting text from DOCX: {str(e)}")
+        return None
+
+def main():
+    st.set_page_config(
+        page_title="Text Summarizer",
+        page_icon="📚",
+        layout="wide"
+    )
+
+    st.title("📚 Text Summarizer")
+    st.write("Upload text, URL, or documents to generate a summary.")
+
+    # Initialize summarizer
+    summarizer = TextSummarizer()
+
+    # Create tabs
+    tab1, tab2, tab3 = st.tabs(["Text", "URL", "Document"])
+
+    with tab1:
+        st.header("Text Input")
+        text_input = st.text_area("Enter your text here:", height=200)
+        num_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3)
+        
+        if st.button("Summarize Text", key="text_button"):
+            if text_input:
                 with st.spinner("Generating summary..."):
-                    summary = self.summarizer.summarize_text(input_text, num_sentences)
-                    if summary:
-                        st.write("### Summary")
-                        st.write(summary)
+                    summary = summarizer.summarize(text_input, num_sentences)
+                    st.success("Summary generated!")
+                    st.write(summary)
             else:
                 st.warning("Please enter some text to summarize.")
 
-    def url_summarization(self):
-        url = st.text_input("Enter URL:")
-        num_sentences = st.number_input(
-            "Number of sentences for summary:",
-            min_value=1,
-            max_value=10,
-            value=3
-        )
-
-        if st.button("Summarize"):
-            if url:
-                with st.spinner("Extracting text from URL..."):
-                    text = self.summarizer.extract_text_from_url(url)
+    with tab2:
+        st.header("URL Input")
+        url_input = st.text_input("Enter URL:")
+        url_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3, key="url_slider")
+        
+        if st.button("Summarize URL", key="url_button"):
+            if url_input:
+                with st.spinner("Fetching content and generating summary..."):
+                    text = extract_text_from_url(url_input)
                     if text:
-                        summary = self.summarizer.summarize_text(text, num_sentences)
-                        if summary:
-                            st.write("### Summary")
-                            st.write(summary)
+                        summary = summarizer.summarize(text, url_sentences)
+                        st.success("Summary generated!")
+                        st.write(summary)
                     else:
-                        st.warning("No text found at the provided URL.")
+                        st.error("Could not extract text from the URL.")
             else:
-                st.warning("Please enter a URL to summarize.")
+                st.warning("Please enter a URL.")
 
-    def document_summarization(self):
-        uploaded_file = st.file_uploader(
-            "Upload a PDF or Word document",
-            type=["pdf", "docx"]
-        )
-        num_sentences = st.number_input(
-            "Number of sentences for summary:",
-            min_value=1,
-            max_value=10,
-            value=3
-        )
+    with tab3:
+        st.header("Document Upload")
+        uploaded_file = st.file_uploader("Upload a document", type=['pdf', 'docx'])
+        doc_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3, key="doc_slider")
+        
+        if uploaded_file and st.button("Summarize Document", key="doc_button"):
+            with st.spinner("Processing document and generating summary..."):
+                file_type = uploaded_file.type
+                if file_type == "application/pdf":
+                    text = extract_text_from_pdf(uploaded_file)
+                elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    text = extract_text_from_docx(uploaded_file)
+                else:
+                    text = None
+                    st.error("Unsupported file type")
 
-        if st.button("Summarize"):
-            if uploaded_file:
-                with st.spinner("Processing document..."):
-                    if uploaded_file.type == "application/pdf":
-                        text = self.summarizer.extract_text_from_pdf(uploaded_file)
-                    else:
-                        text = self.summarizer.extract_text_from_docx(uploaded_file)
+                if text:
+                    summary = summarizer.summarize(text, doc_sentences)
+                    st.success("Summary generated!")
+                    st.write(summary)
 
-                    if text:
-                        summary = self.summarizer.summarize_text(text, num_sentences)
-                        if summary:
-                            st.write("### Summary")
-                            st.write(summary)
-                    else:
-                        st.warning("No text found in the uploaded document.")
-            else:
-                st.warning("Please upload a document to summarize.")
+    # Add footer
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style="text-align: center">
+            <p>Made with ❤️ by Your Name</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 if __name__ == "__main__":
-    app = StreamlitApp()
-    app.run()
+    main()
