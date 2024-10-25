@@ -1,5 +1,7 @@
 import streamlit as st
-from gensim.summarization import summarize as gensim_summarize
+import nltk
+nltk.download("punkt")
+from textblob import TextBlob
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -29,52 +31,54 @@ def extract_text_from_url(url):
         st.error(f"An error occurred while extracting text from URL: {str(e)}")
         return ""
 
-def extract_text_from_file(file):
-    """Extract text from uploaded file based on its type."""
-    if file.type == "application/pdf":
-        reader = PdfReader(file)
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text() or ""
-        return text
+def extract_text_from_pdf(file):
+    """Extract text from a PDF file."""
+    reader = PdfReader(file)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text() or ""
+    return text
 
-    elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        doc = Document(file)
-        text = "\n".join([para.text for para in doc.paragraphs])
-        return text
+def extract_text_from_docx(file):
+    """Extract text from a DOCX file."""
+    doc = Document(file)
+    text = "\n".join([para.text for para in doc.paragraphs])
+    return text
 
-    elif file.type == "text/plain":
-        return file.read().decode("utf-8")
+def extract_text_from_txt(file):
+    """Extract text from a TXT file."""
+    return file.read().decode("utf-8")
 
-    elif file.type == "text/html":
-        soup = BeautifulSoup(file.read(), "html.parser")
-        paragraphs = soup.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6"])
-        text = "\n".join([p.get_text() for p in paragraphs])
-        return text
+def extract_text_from_html(file):
+    """Extract text from an HTML file."""
+    soup = BeautifulSoup(file.read(), "html.parser")
+    paragraphs = soup.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6"])
+    text = "\n".join([p.get_text() for p in paragraphs])
+    return text
 
-    elif file.type == "text/csv":
-        df = pd.read_csv(file)
-        return df.to_string()
+def extract_text_from_csv(file):
+    """Extract text from a CSV file."""
+    df = pd.read_csv(file)
+    return df.to_string()
 
-    elif file.type == "application/xml":
-        tree = ET.parse(file)
-        root = tree.getroot()
-        text = " ".join([elem.text for elem in root.iter() if elem.text])
-        return text
-    else:
-        st.error("Unsupported file type.")
-        return ""
+def extract_text_from_xml(file):
+    """Extract text from an XML file."""
+    tree = ET.parse(file)
+    root = tree.getroot()
+    text = " ".join([elem.text for elem in root.iter() if elem.text])
+    return text
 
-def summarize_text(text, ratio=0.3):
-    """Summarize the given text using Gensim's summarizer."""
-    try:
-        summary = gensim_summarize(text, ratio=ratio)
-        return summary
-    except ValueError:
-        return "Text is too short for summarization."
+def summarize_text(text, num_sentences=3):
+    """Summarize the given text using TextBlob."""
+    blob = TextBlob(text)
+    sentences = blob.sentences
+    # Extract sentences with the most noun phrases as a simple summarization
+    sorted_sentences = sorted(sentences, key=lambda s: len(s.noun_phrases), reverse=True)
+    summary = ' '.join(str(sentence) for sentence in sorted_sentences[:num_sentences])
+    return summary
 
 def main():
-    st.title("Enhanced Text Summarization App")
+    st.title("Text Summarization App")
 
     # Handle choice selection
     choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document"])
@@ -82,12 +86,12 @@ def main():
     # Text Summarization Section
     if choice == "Summarize Text":
         input_text = st.text_area("Enter your text here:", height=300)
-        ratio = st.slider("Summary Ratio (e.g., 0.1 for 10% of text):", min_value=0.1, max_value=1.0, value=0.3, step=0.1)
+        num_sentences = st.number_input("Number of sentences for summary:", min_value=1, value=3, step=1)
 
         if st.button("Summarize"):
             if input_text:
                 preprocessed_text = preprocess_text(input_text)
-                summary = summarize_text(preprocessed_text, ratio)
+                summary = summarize_text(preprocessed_text, num_sentences)
                 st.write("### Summary")
                 st.write(summary)
             else:
@@ -96,13 +100,13 @@ def main():
     # URL Summarization Section
     elif choice == "Summarize URL":
         url = st.text_input("Enter URL:")
-        ratio = st.slider("Summary Ratio (e.g., 0.1 for 10% of text):", min_value=0.1, max_value=1.0, value=0.3, step=0.1)
+        num_sentences = st.number_input("Number of sentences for summary:", min_value=1, value=3, step=1)
 
         if st.button("Summarize"):
             if url:
                 text_from_url = extract_text_from_url(url)
                 if text_from_url:
-                    summary = summarize_text(text_from_url, ratio)
+                    summary = summarize_text(text_from_url, num_sentences)
                     st.write("### Summary")
                     st.write(summary)
                 else:
@@ -116,10 +120,23 @@ def main():
 
         if st.button("Summarize"):
             if uploaded_file:
-                all_text = extract_text_from_file(uploaded_file)
+                file_type = uploaded_file.type
+                if file_type == "application/pdf":
+                    all_text = extract_text_from_pdf(uploaded_file)
+                elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    all_text = extract_text_from_docx(uploaded_file)
+                elif file_type == "text/plain":
+                    all_text = extract_text_from_txt(uploaded_file)
+                elif file_type == "text/html":
+                    all_text = extract_text_from_html(uploaded_file)
+                elif file_type == "text/csv":
+                    all_text = extract_text_from_csv(uploaded_file)
+                elif file_type == "application/xml":
+                    all_text = extract_text_from_xml(uploaded_file)
+
                 if all_text:
-                    ratio = st.slider("Summary Ratio (e.g., 0.1 for 10% of text):", min_value=0.1, max_value=1.0, value=0.3, step=0.1)
-                    summary = summarize_text(all_text, ratio)
+                    num_sentences = st.number_input("Number of sentences for summary:", min_value=1, value=3, step=1)
+                    summary = summarize_text(all_text, num_sentences)
                     st.write("### Summary")
                     st.write(summary)
                 else:
