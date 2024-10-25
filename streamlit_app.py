@@ -1,99 +1,136 @@
 import streamlit as st
 import nltk
-from textblob import TextBlob
+from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.corpus import stopwords
+from nltk.cluster.util import cosine_distance
+import numpy as np
+import networkx as nx
+from sklearn.feature_extraction.text import TfidfVectorizer
+from collections import Counter
 import requests
 from bs4 import BeautifulSoup
 import PyPDF2
 from docx import Document
-import subprocess
-import sys
-import os
+import re
 
-# Function to ensure NLTK data is downloaded
-def download_nltk_data():
-    """Download required NLTK data."""
-    try:
-        nltk.data.find('tokenizers/punkt')
-    except LookupError:
-        nltk.download('punkt')
-    try:
-        nltk.data.find('taggers/averaged_perceptron_tagger')
-    except LookupError:
-        nltk.download('averaged_perceptron_tagger')
-    try:
-        nltk.data.find('corpora/wordnet')
-    except LookupError:
-        nltk.download('wordnet')
-    try:
-        nltk.data.find('corpora/omw-1.4')
-    except LookupError:
-        nltk.download('omw-1.4')
-
-# Function to download TextBlob corpora
-def download_textblob_data():
-    """Download TextBlob corpora."""
-    try:
-        subprocess.check_call([
-            sys.executable,
-            "-m",
-            "textblob.download_corpora"
-        ])
-    except subprocess.CalledProcessError:
-        st.error("Failed to download TextBlob corpora")
-        raise
-
-# Initialize required data
+# Download required NLTK data
 @st.cache_resource
-def initialize_nlp_resources():
-    """Initialize all NLP resources."""
-    download_nltk_data()
-    download_textblob_data()
-    return True
-
-# Text summarization function
-def summarize_text(text, num_sentences=3):
-    """Generate text summary using TextBlob."""
+def download_nltk_data():
     try:
-        # Ensure NLP resources are initialized
-        if not hasattr(summarize_text, "initialized"):
-            initialize_nlp_resources()
-            summarize_text.initialized = True
-
-        # Create TextBlob object
-        blob = TextBlob(text)
-        
-        # Get sentences
-        sentences = blob.sentences
-        
-        if not sentences:
-            return "No sentences found in the text."
-        
-        # Score sentences based on the number of noun phrases
-        sentence_scores = []
-        for sentence in sentences:
-            score = len(sentence.noun_phrases)
-            sentence_scores.append((sentence, score))
-        
-        # Sort sentences by score
-        sentence_scores.sort(key=lambda x: x[1], reverse=True)
-        
-        # Get top sentences
-        top_sentences = sentence_scores[:num_sentences]
-        
-        # Sort sentences by their original order
-        top_sentences.sort(key=lambda x: text.find(str(x[0])))
-        
-        # Join sentences into final summary
-        summary = ' '.join(str(sentence[0]) for sentence in top_sentences)
-        return summary
-
+        nltk.download('punkt')
+        nltk.download('stopwords')
+        nltk.download('averaged_perceptron_tagger')
+        return True
     except Exception as e:
-        st.error(f"Error during summarization: {str(e)}")
-        return ""
+        st.error(f"Error downloading NLTK data: {str(e)}")
+        return False
 
-# Function to extract text from URL
+# Text preprocessing
+def preprocess_text(text):
+    """Clean and preprocess the text."""
+    # Remove special characters and digits
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    
+    # Convert to lowercase
+    text = text.lower()
+    
+    # Tokenize into sentences
+    sentences = sent_tokenize(text)
+    
+    # Remove short sentences
+    sentences = [sentence for sentence in sentences if len(sentence.split()) > 3]
+    
+    return sentences
+
+# Method 1: TextRank-based summarization
+def textrank_summarize(text, num_sentences=3):
+    """Implement TextRank algorithm for text summarization."""
+    sentences = preprocess_text(text)
+    
+    # Create similarity matrix
+    similarity_matrix = np.zeros((len(sentences), len(sentences)))
+    
+    for idx1 in range(len(sentences)):
+        for idx2 in range(len(sentences)):
+            if idx1 != idx2:
+                similarity_matrix[idx1][idx2] = sentence_similarity(sentences[idx1], sentences[idx2])
+    
+    # Create graph and apply PageRank
+    nx_graph = nx.from_numpy_array(similarity_matrix)
+    scores = nx.pagerank(nx_graph)
+    
+    # Sort sentences by score
+    ranked_sentences = sorted(((scores[i], s) for i, s in enumerate(sentences)), reverse=True)
+    
+    # Select top sentences
+    summary = ' '.join([ranked_sentences[i][1] for i in range(min(num_sentences, len(ranked_sentences)))])
+    return summary
+
+# Method 2: TF-IDF based summarization
+def tfidf_summarize(text, num_sentences=3):
+    """Implement TF-IDF based summarization."""
+    sentences = preprocess_text(text)
+    
+    # Create TF-IDF vectorizer
+    vectorizer = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = vectorizer.fit_transform(sentences)
+    
+    # Calculate sentence scores
+    sentence_scores = []
+    for i in range(len(sentences)):
+        score = np.sum(tfidf_matrix[i].toarray())
+        sentence_scores.append((score, sentences[i]))
+    
+    # Sort and select top sentences
+    ranked_sentences = sorted(sentence_scores, reverse=True)
+    summary = ' '.join([ranked_sentences[i][1] for i in range(min(num_sentences, len(ranked_sentences)))])
+    return summary
+
+# Method 3: Frequency-based summarization
+def frequency_summarize(text, num_sentences=3):
+    """Implement frequency-based summarization."""
+    sentences = preprocess_text(text)
+    
+    # Tokenize words and remove stopwords
+    stop_words = set(stopwords.words('english'))
+    words = word_tokenize(text.lower())
+    words = [word for word in words if word not in stop_words and word.isalnum()]
+    
+    # Calculate word frequencies
+    freq = Counter(words)
+    
+    # Score sentences based on word frequencies
+    sentence_scores = []
+    for sentence in sentences:
+        score = sum(freq[word.lower()] for word in word_tokenize(sentence) 
+                   if word.lower() in freq)
+        sentence_scores.append((score, sentence))
+    
+    # Sort and select top sentences
+    ranked_sentences = sorted(sentence_scores, reverse=True)
+    summary = ' '.join([ranked_sentences[i][1] for i in range(min(num_sentences, len(ranked_sentences)))])
+    return summary
+
+# Helper function for TextRank
+def sentence_similarity(sent1, sent2):
+    """Calculate similarity between two sentences."""
+    words1 = set(word_tokenize(sent1))
+    words2 = set(word_tokenize(sent2))
+    
+    # Remove stopwords
+    stop_words = set(stopwords.words('english'))
+    words1 = words1.difference(stop_words)
+    words2 = words2.difference(stop_words)
+    
+    # Calculate Jaccard similarity
+    intersection = words1.intersection(words2)
+    union = words1.union(words2)
+    
+    return len(intersection) / len(union) if len(union) > 0 else 0
+
+# Text extraction functions
 def extract_text_from_url(url):
-    """Extract text from a webpage."""
+    """Extract text from URL."""
     try:
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -103,9 +140,8 @@ def extract_text_from_url(url):
         st.error(f"Error extracting text from URL: {str(e)}")
         return ""
 
-# Function to extract text from PDF
 def extract_text_from_pdf(file):
-    """Extract text from a PDF file."""
+    """Extract text from PDF."""
     try:
         pdf_reader = PyPDF2.PdfReader(file)
         text = ''
@@ -116,47 +152,83 @@ def extract_text_from_pdf(file):
         st.error(f"Error extracting text from PDF: {str(e)}")
         return ""
 
-# Function to extract text from DOCX
 def extract_text_from_docx(file):
-    """Extract text from a Word document."""
+    """Extract text from DOCX."""
     try:
         doc = Document(file)
-        text = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
-        return text
+        return ' '.join([paragraph.text for paragraph in doc.paragraphs])
     except Exception as e:
         st.error(f"Error extracting text from DOCX: {str(e)}")
         return ""
 
+# Main Streamlit app
 def main():
-    st.title("Text Summarization App")
+    st.title("Advanced Text Summarization App")
     
-    # Initialize NLP resources at startup
-    with st.spinner("Initializing NLP resources..."):
-        try:
-            initialize_nlp_resources()
-            st.success("NLP resources initialized successfully!")
-        except Exception as e:
-            st.error(f"Failed to initialize NLP resources: {str(e)}")
-            return
+    # Initialize NLTK data
+    if not download_nltk_data():
+        st.error("Failed to initialize required data. Please try again.")
+        return
 
-    # Input selection
-    input_method = st.radio(
-        "Choose input method:",
-        ["Text Input", "URL", "Upload Document"]
+    # Sidebar options
+    st.sidebar.title("Settings")
+    summarization_method = st.sidebar.selectbox(
+        "Choose Summarization Method",
+        ["TextRank", "TF-IDF", "Frequency-Based"]
+    )
+    
+    input_method = st.sidebar.radio(
+        "Choose Input Method",
+        ["Text Input", "URL", "Document Upload"]
     )
 
-    # Text input
+    # Main content
     if input_method == "Text Input":
-        text = st.text_area("Enter text to summarize:", height=200)
+        text = st.text_area("Enter your text here:", height=200)
         num_sentences = st.slider("Number of sentences in summary:", 1, 10, 3)
         
-        if st.button("Summarize"):
+        if st.button("Generate Summary"):
             if text:
                 with st.spinner("Generating summary..."):
-                    summary = summarize_text(text, num_sentences)
-                    if summary:
+                    if summarization_method == "TextRank":
+                        summary = textrank_summarize(text, num_sentences)
+                    elif summarization_method == "TF-IDF":
+                        summary = tfidf_summarize(text, num_sentences)
+                    else:
+                        summary = frequency_summarize(text, num_sentences)
+                    
+                    st.subheader("Summary:")
+                    st.write(summary)
+                    
+                    # Add download button
+                    st.download_button(
+                        label="Download Summary",
+                        data=summary,
+                        file_name="summary.txt",
+                        mime="text/plain"
+                    )
+            else:
+                st.warning("Please enter some text to summarize.")
+
+    elif input_method == "URL":
+        url = st.text_input("Enter URL:")
+        num_sentences = st.slider("Number of sentences in summary:", 1, 10, 3)
+        
+        if st.button("Generate Summary"):
+            if url:
+                with st.spinner("Fetching and summarizing content..."):
+                    text = extract_text_from_url(url)
+                    if text:
+                        if summarization_method == "TextRank":
+                            summary = textrank_summarize(text, num_sentences)
+                        elif summarization_method == "TF-IDF":
+                            summary = tfidf_summarize(text, num_sentences)
+                        else:
+                            summary = frequency_summarize(text, num_sentences)
+                        
                         st.subheader("Summary:")
                         st.write(summary)
+                        
                         # Add download button
                         st.download_button(
                             label="Download Summary",
@@ -164,41 +236,17 @@ def main():
                             file_name="summary.txt",
                             mime="text/plain"
                         )
-            else:
-                st.warning("Please enter some text to summarize.")
-
-    # URL input
-    elif input_method == "URL":
-        url = st.text_input("Enter URL:")
-        num_sentences = st.slider("Number of sentences in summary:", 1, 10, 3)
-        
-        if st.button("Summarize"):
-            if url:
-                with st.spinner("Fetching and summarizing content..."):
-                    text = extract_text_from_url(url)
-                    if text:
-                        summary = summarize_text(text, num_sentences)
-                        if summary:
-                            st.subheader("Summary:")
-                            st.write(summary)
-                            st.download_button(
-                                label="Download Summary",
-                                data=summary,
-                                file_name="summary.txt",
-                                mime="text/plain"
-                            )
                     else:
                         st.error("Could not extract text from URL.")
             else:
                 st.warning("Please enter a URL.")
 
-    # Document upload
     else:
         uploaded_file = st.file_uploader("Upload document", type=["pdf", "docx"])
         num_sentences = st.slider("Number of sentences in summary:", 1, 10, 3)
         
         if uploaded_file is not None:
-            if st.button("Summarize"):
+            if st.button("Generate Summary"):
                 with st.spinner("Processing document..."):
                     if uploaded_file.type == "application/pdf":
                         text = extract_text_from_pdf(uploaded_file)
@@ -206,16 +254,23 @@ def main():
                         text = extract_text_from_docx(uploaded_file)
                         
                     if text:
-                        summary = summarize_text(text, num_sentences)
-                        if summary:
-                            st.subheader("Summary:")
-                            st.write(summary)
-                            st.download_button(
-                                label="Download Summary",
-                                data=summary,
-                                file_name="summary.txt",
-                                mime="text/plain"
-                            )
+                        if summarization_method == "TextRank":
+                            summary = textrank_summarize(text, num_sentences)
+                        elif summarization_method == "TF-IDF":
+                            summary = tfidf_summarize(text, num_sentences)
+                        else:
+                            summary = frequency_summarize(text, num_sentences)
+                        
+                        st.subheader("Summary:")
+                        st.write(summary)
+                        
+                        # Add download button
+                        st.download_button(
+                            label="Download Summary",
+                            data=summary,
+                            file_name="summary.txt",
+                            mime="text/plain"
+                        )
                     else:
                         st.error("Could not extract text from document.")
 
