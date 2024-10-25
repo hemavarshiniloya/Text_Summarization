@@ -114,8 +114,8 @@ languages = {
 # Set page configuration
 st.set_page_config(layout="wide")
 
-# Initialize the LSA summarizer
-summarizer = LsaSummarizer()
+
+
 
 def text_summary(text, max_sentences):
     # Parse the input text
@@ -235,9 +235,8 @@ def download_file(content, filename):
 # Main function to run the Streamlit app
 def main():
     st.title("Text Summarization App")
-    
-    # Summarization algorithm selection
-    algorithm = "LSA"  # Fixed to LSA
+    import nltk
+    nltk.download('punkt', quiet=True)
 
     # Language selection
     selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
