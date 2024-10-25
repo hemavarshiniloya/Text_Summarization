@@ -1,10 +1,8 @@
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
 import PyPDF2
 import docx
-from collections import Counter
 import re
+from collections import Counter
 
 class TextSummarizer:
     def __init__(self):
@@ -123,23 +121,23 @@ def main():
 
     if uploaded_files:
         for uploaded_file in uploaded_files:
-            st.subheader(f"Processing {uploaded_file.name}...")
-            text = ""
+            st.subheader(f"Processing {uploaded_file.name} ...")
             
-            # Extract text based on file type
             if uploaded_file.type == "application/pdf":
-                text = extract_text_from_pdf(upload _file)
+                text = extract_text_from_pdf(uploaded_file)  # Corrected line
             elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                text = extract_text_from_docx(upload_file)
+                text = extract_text_from_docx(uploaded_file)
             elif uploaded_file.type == "text/plain":
-                text = extract_text_from_txt(upload_file)
+                text = extract_text_from_txt(uploaded_file)
+            else:
+                st.error(f"Unsupported file type: {uploaded_file.type}")
+                continue
             
             if text:
                 summary = summarizer.summarize(text, num_sentences)
-                st.write(f"Summary of {uploaded_file.name}:")
-                st.write(summary)
+                st.write(f"**Summary of {uploaded_file.name}**: {summary}")
             else:
-                st.write(f"Failed to extract text from {uploaded_file.name}. Skipping.")
+                st.write(f"**Error processing {uploaded_file.name}**")
 
 if __name__ == "__main__":
     main()
