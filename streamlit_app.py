@@ -13,6 +13,9 @@ import xml.etree.ElementTree as ET
 import os
 from googletrans import Translator
 import re
+import nltk
+nltk.download("punkt", quiet=True)  # Download tokenizer
+
 # Ensure the required tokenizer is downloaded
 try:
     find("tokenizers/punkt")
