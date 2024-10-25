@@ -1,6 +1,7 @@
 import streamlit as st
-from txtai.pipeline import Summary
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.text_rank import TextRankSummarizer  # Using TextRank summarizer
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -11,13 +12,11 @@ import os
 from googletrans import Translator
 import re
 
-
 # List of languages with their ISO 639-1 codes
 languages = {
-    "English": "en", 
+    "English": "en",
     "Afrikaans": "af",
     "Albanian": "sq",
-    "Amharic": "am",
     "Arabic": "ar",
     "Armenian": "hy",
     "Azerbaijani": "az",
@@ -27,13 +26,13 @@ languages = {
     "Bosnian": "bs",
     "Bulgarian": "bg",
     "Catalan": "ca",
-    "Chinese (Simplified)": "zh",
-    "Chinese (Traditional)": "zh-TW",
+    "Chinese (Simplified)": "zh-cn",
+    "Chinese (Traditional)": "zh-tw",
     "Croatian": "hr",
     "Czech": "cs",
     "Danish": "da",
     "Dutch": "nl",
-    "Esperanto": "eo",
+    "English": "en",
     "Estonian": "et",
     "Finnish": "fi",
     "French": "fr",
@@ -43,8 +42,7 @@ languages = {
     "Greek": "el",
     "Gujarati": "gu",
     "Haitian Creole": "ht",
-    "Hausa": "ha",
-    "Hebrew": "he",
+    "Hebrew": "iw",
     "Hindi": "hi",
     "Hungarian": "hu",
     "Icelandic": "is",
@@ -53,15 +51,13 @@ languages = {
     "Irish": "ga",
     "Italian": "it",
     "Japanese": "ja",
-    "Javanese": "jv",
-    "Kannada": "kn",
+    "Javanese": "jw",
     "Kazakh": "kk",
-    "Khmer": "km",
-    "Kinyarwanda": "rw",
     "Korean": "ko",
     "Kurdish": "ku",
     "Kyrgyz": "ky",
     "Lao": "lo",
+    "Latin": "la",
     "Latvian": "lv",
     "Lithuanian": "lt",
     "Luxembourgish": "lb",
@@ -82,35 +78,23 @@ languages = {
     "Punjabi": "pa",
     "Romanian": "ro",
     "Russian": "ru",
-    "Samoan": "sm",
-    "Scots Gaelic": "gd",
     "Serbian": "sr",
-    "Sesotho": "st",
-    "Shona": "sn",
-    "Sindhi": "sd",
-    "Sinhala": "si",
     "Slovak": "sk",
     "Slovenian": "sl",
-    "Somali": "so",
     "Spanish": "es",
-    "Sundanese": "su",
     "Swahili": "sw",
     "Swedish": "sv",
     "Tagalog": "tl",
-    "Tajik": "tg",
-    "Tamil": "ta",
-    "Tatar": "tt",
-    "Telugu": "te",
     "Thai": "th",
     "Turkish": "tr",
     "Ukrainian": "uk",
     "Urdu": "ur",
-    "Uzbek": "uz",
     "Vietnamese": "vi",
     "Welsh": "cy",
     "Xhosa": "xh",
+    "Yiddish": "yi",
     "Yoruba": "yo",
-    "Zulu": "zu"
+    "Zulu": "zu",
 }
 
 # Set page configuration
@@ -118,9 +102,10 @@ st.set_page_config(layout="wide")
 
 # Initialize text summarizer
 def text_summary(text, maxlength=None):
-    summary = Summary()
-    result = summary(text)
-    return result
+    parser = PlaintextParser.from_string(text, Tokenizer("english"))
+    summarizer = TextRankSummarizer()  # Using TextRank summarizer
+    summary = summarizer(parser.document, maxlength)  # Length is in sentences
+    return ' '.join(str(sentence) for sentence in summary)
 
 # Function to preprocess text
 def preprocess_text(text):
@@ -250,7 +235,7 @@ def main():
     # Handle each choice
     if choice == "Summarize Text":
         st.session_state.text = st.text_area("Enter Text", st.session_state.text)
-        maxlength = st.slider("Maximum Summary Length", 10, 100, 50)
+        maxlength = st.slider("Maximum Summary Length (sentences)", 1, 10, 5)
 
         if st.button("Summarize"):
             if validate_input(st.session_state.text):
@@ -265,54 +250,50 @@ def main():
     elif choice == "Summarize URL":
         st.session_state.url = st.text_input("Enter URL", st.session_state.url)
 
-        if st.button("Summarize"):
+        if st.button("Extract and Summarize"):
             if validate_input(st.session_state.url):
                 extracted_text = extract_text_from_url(st.session_state.url)
-                if extracted_text:
-                    summary = text_summary(extracted_text)
-                    st.write("Summary:")
-                    st.write(summary)
-                    save_summary(summary)
-                else:
-                    st.error("No text found at the provided URL.")
+                preprocessed_text = preprocess_text(extracted_text)
+                summary = text_summary(preprocessed_text)
+                st.write("Summary:")
+                st.write(summary)
+                save_summary(summary)
             else:
-                st.error("Please enter a URL.")
+                st.error("Please enter a valid URL.")
 
     elif choice == "Summarize Document":
-        uploaded_files = st.file_uploader("Upload Document", type=["pdf", "docx", "txt", "csv", "xml", "html"], accept_multiple_files=True)
-        st.session_state.uploaded_files = uploaded_files
+        uploaded_files = st.file_uploader("Upload Document", type=["txt", "pdf", "docx", "csv", "xml", "html"], accept_multiple_files=True)
+        st.session_state.uploaded_files = uploaded_files if uploaded_files else st.session_state.uploaded_files
 
-        if st.button("Summarize"):
-            if uploaded_files:
-                all_text = ""
-                for uploaded_file in uploaded_files:
-                    if uploaded_file.type == "application/pdf":
-                        all_text += extract_text_from_pdf(uploaded_file)
-                    elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                        all_text += extract_text_from_docx(uploaded_file)
-                    elif uploaded_file.type == "text/plain":
-                        all_text += extract_text_from_txt(uploaded_file)
-                    elif uploaded_file.type == "text/csv":
-                        all_text += extract_text_from_csv(uploaded_file)
-                    elif uploaded_file.type == "application/xml":
-                        all_text += extract_text_from_xml(uploaded_file)
-                    elif uploaded_file.type == "text/html":
-                        all_text += extract_text_from_html(uploaded_file)
+        if st.button("Summarize Documents"):
+            all_text = ""
+            for uploaded_file in st.session_state.uploaded_files:
+                if uploaded_file.type == "application/pdf":
+                    all_text += extract_text_from_pdf(uploaded_file)
+                elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    all_text += extract_text_from_docx(uploaded_file)
+                elif uploaded_file.type == "text/plain":
+                    all_text += extract_text_from_txt(uploaded_file)
+                elif uploaded_file.type == "text/html":
+                    all_text += extract_text_from_html(uploaded_file)
+                elif uploaded_file.type == "text/csv":
+                    all_text += extract_text_from_csv(uploaded_file)
+                elif uploaded_file.type == "application/xml":
+                    all_text += extract_text_from_xml(uploaded_file)
 
-                if all_text:
-                    summary = text_summary(all_text)
-                    st.write("Summary:")
-                    st.write(summary)
-                    save_summary(summary)
-                else:
-                    st.error("No text extracted from the uploaded documents.")
+            if all_text:
+                preprocessed_text = preprocess_text(all_text)
+                summary = text_summary(preprocessed_text)
+                st.write("Summary:")
+                st.write(summary)
+                save_summary(summary)
             else:
-                st.error("Please upload at least one document.")
+                st.error("No text found in the uploaded documents.")
 
     elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Paste Text from Clipboard", st.session_state.clipboard_text)
+        st.session_state.clipboard_text = st.text_area("Text from Clipboard", st.session_state.clipboard_text)
 
-        if st.button("Summarize"):
+        if st.button("Summarize Clipboard Text"):
             if validate_input(st.session_state.clipboard_text):
                 preprocessed_text = preprocess_text(st.session_state.clipboard_text)
                 summary = text_summary(preprocessed_text)
@@ -320,17 +301,33 @@ def main():
                 st.write(summary)
                 save_summary(summary)
             else:
-                st.error("Please paste some text.")
+                st.error("Clipboard text is empty.")
+
+    # Translation feature
+    if st.button("Translate Summary"):
+        if 'summary' in locals():
+            translated_summary = translate_text(summary, languages[selected_language])
+            st.write("Translated Summary:")
+            st.write(translated_summary)
+        else:
+            st.error("Please summarize text before translating.")
 
     # Summary history
-    if st.sidebar.checkbox("Show Summary History"):
+    if st.sidebar.button("Show Summary History"):
         history = load_summary_history()
-        st.text_area("Summary History", history, height=300)
+        if history:
+            st.sidebar.text_area("Summary History", history, height=300)
+        else:
+            st.sidebar.write("No summary history available.")
 
-    # Clear history option
+    # Clear summary history
     if st.sidebar.button("Clear Summary History"):
         clear_summary_history()
-        st.success("Summary history cleared.")
+        st.sidebar.write("Summary history cleared.")
+
+    # Clear inputs based on choice
+    if st.sidebar.button("Clear Input"):
+        clear_input(choice)
 
 if __name__ == "__main__":
     main()
