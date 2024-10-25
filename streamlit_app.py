@@ -8,7 +8,6 @@ from docx import Document
 import pandas as pd
 import xml.etree.ElementTree as ET
 import re
-import os
 
 # List of languages with their ISO 639-1 codes
 languages = {
@@ -123,7 +122,7 @@ def text_summary(text):
 # Function to preprocess text
 def preprocess_text(text):
     text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
-    text = re.sub(r'[^A-Za -z0-9\s\.]+', '', text)  # Remove unwanted characters
+    text = re.sub(r'[^A-Za-z0-9\s\.]+', '', text)  # Remove unwanted characters
     return text
 
 # Function to translate text
@@ -157,7 +156,8 @@ def read_xml(file_path):
     root = tree.getroot()
     text = ''
     for elem in root:
-        text += elem.text
+        if elem.text:
+            text += elem.text
     return text
 
 # Function to read CSV files
@@ -181,31 +181,20 @@ def scrape_website(url):
         st.error(f"Error fetching URL: {str(e)}")
         return ""
 
-# Function to display the history of translations and summaries
-def display_history():
-    st.subheader("📜 History of Translations and Summaries")
-    history_text = (
-        "The history of translations and summaries is rich and spans many cultures and eras:\n\n"
-        "**Ancient Times**:\n"
-        "- Sumerians and Egyptians practiced early translations, notably with the Rosetta Stone.\n\n"
-        "**Classical Era**:\n"
-        "- The Septuagint translated the Hebrew Bible into Greek. Romans translated Greek works into Latin.\n\n"
-        "**Medieval Period**:\n"
-        "- Islamic scholars preserved and translated ancient texts. The 12th-century Renaissance saw a surge in translations.\n\n"
-        "**Modern Era**:\n"
-        "- The rise of nationalism in the 19th century led to interest in translating folk literature. Machine translation began in the 1950s.\n\n"
-        "**21st Century**:\n"
-        "- Advances in AI and machine learning have significantly improved translation and summarization technologies."
-    )
-    st.write(history_text)
+# Function to store previous translations and summaries
+def store_summary_and_translation(original, summary, translated):
+    if "history" not in st.session_state:
+        st.session_state.history = []
+    st.session_state.history.append({
+        "Original Text": original,
+        "Summary": summary,
+        "Translated Summary": translated
+    })
 
 # Main function
 def main():
     st.title("📝 Text Summarization and Translation App")
     st.write("This app can summarize text and translate it to various languages.")
-
-    # Add the history section
-    display_history()
 
     # Language selection in sidebar
     selected_language = st.sidebar.selectbox("🌐 Select a language to translate to", list(languages.keys()), index=0)
@@ -219,8 +208,8 @@ def main():
 
         # Summarize and translate button
         if st.button("✨ Summarize and Translate"):
-            with st.spinner("Processing..."):
-                if text_input:
+            if text_input:
+                with st.spinner("Processing..."):
                     # Preprocess text
                     text = preprocess_text(text_input)
 
@@ -229,6 +218,9 @@ def main():
 
                     # Translate summary
                     translated_summary = translate_text(summary, languages[selected_language])
+
+                    # Store history
+                    store_summary_and_translation(text_input, summary, translated_summary)
 
                     # Display results
                     st.write("📝 Original Text:")
@@ -253,46 +245,50 @@ def main():
 
     elif input_type == "File":
         # File uploader
-        file_uploaded = st.file_uploader("📥 Upload a file (PDF, Word, XML, CSV)", type=["pdf", "docx", "xml", "csv"])
+        file_uploaded = st.file_uploader("📥 Upload a file (PDF, Word, XML, CSV)", type=["pdf", "docx", "xml", "csv"], accept_multiple_files=False)
 
-        if file_uploaded:
-            # Process the uploaded file based on its type
-            if file_uploaded.name.endswith('.pdf'):
-                text = read_pdf(file_uploaded)
-            elif file_uploaded.name.endswith('.docx'):
-                text = read_word(file_uploaded)
-            elif file_uploaded.name.endswith('.xml'):
-                text = read_xml(file_uploaded)
-            elif file_uploaded.name.endswith('.csv'):
-                text = read_csv(file_uploaded)
-
-            # Summarize and translate button
-            if st.button("✨ Summarize and Translate"):
+        # Summarize and translate button
+        if st.button("✨ Summarize and Translate"):
+            if file_uploaded:
                 with st.spinner("Processing..."):
-                    if text:
-                        # Preprocess text
-                        text = preprocess_text(text)
+                    if file_uploaded.name.endswith('.pdf'):
+                        text = read_pdf(file_uploaded)
+                    elif file_uploaded.name.endswith('.docx'):
+                        text = read_word(file_uploaded)
+                    elif file_uploaded.name.endswith('.xml'):
+                        text = read_xml(file_uploaded)
+                    elif file_uploaded.name.endswith('.csv'):
+                        text = read_csv(file_uploaded)
 
-                        # Summarize text
-                        summary = text_summary(text)
+                    # Preprocess text
+                    text = preprocess_text(text)
 
-                        # Translate summary
-                        translated_summary = translate_text(summary, languages[selected_language])
+                    # Summarize text
+                    summary = text_summary(text)
 
-                        # Display results
-                        st.write("📄 Summary:")
-                        st.write(summary)
-                        st.write("🌍 Translated Summary:")
-                        st.write(translated_summary)
+                    # Translate summary
+                    translated_summary = translate_text(summary, languages[selected_language])
+
+                    # Store history
+                    store_summary_and_translation(text, summary, translated_summary)
+
+                    # Display results
+                    st.write("📝 Original Text:")
+                    st.write(text)
+                    st.write("📄 Summary:")
+                    st.write(summary)
+                    st.write("🌍 Translated Summary:")
+                    st.write(translated_summary)
 
     elif input_type == "URL":
         # URL input
-        url_input = st.text_input("🔗 Enter URL")
+        url_input = st.text_input("🌐 Enter the URL of the webpage to scrape")
 
-        # Scrape and translate button
-        if st.button("✨ Scrape and Translate"):
-            with st.spinner("Processing..."):
-                if url_input:
+        # Summarize and translate button
+        if st.button("✨ Summarize and Translate"):
+            if url_input:
+                with st.spinner("Processing..."):
+                    # Scrape text from website
                     text = scrape_website(url_input)
 
                     # Preprocess text
@@ -304,11 +300,25 @@ def main():
                     # Translate summary
                     translated_summary = translate_text(summary, languages[selected_language])
 
+                    # Store history
+                    store_summary_and_translation(text, summary, translated_summary)
+
                     # Display results
+                    st.write("📝 Original Text:")
+                    st.write(text)
                     st.write("📄 Summary:")
                     st.write(summary)
                     st.write("🌍 Translated Summary:")
                     st.write(translated_summary)
+
+    # Show summary and translation history
+    if "history" in st.session_state:
+        st.write("📜 Previous Summaries and Translations:")
+        for entry in st.session_state.history:
+            st.write(f"**Original:** {entry['Original Text']}")
+            st.write(f"**Summary:** {entry['Summary']}")
+            st.write(f"**Translated Summary:** {entry['Translated Summary']}")
+            st.write("---")
 
 if __name__ == "__main__":
     main()
