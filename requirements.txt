@@ -1,9 +1,9 @@
 streamlit
 googletrans==4.0.0-rc1
-gensim==4.2.0
-requests==2.31.0
-beautifulsoup4==4.12.2
-PyPDF2==3.0.1
-python-docx==0.8.11
-pandas==1.5.3
-lxml==4.9.3
+gensim
+requests
+beautifulsoup4
+PyPDF2
+python-docx
+pandas
+lxml
