@@ -1,6 +1,6 @@
 import streamlit as st
 import nltk
-from nltk.data import find, download
+from nltk.tokenize import sent_tokenize
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer
@@ -13,12 +13,12 @@ import xml.etree.ElementTree as ET
 import os
 import re
 
-# Download necessary NLTK data files if not already present
+# Ensure NLTK data is downloaded
 def ensure_nltk_data():
     try:
-        find("tokenizers/punkt")
+        nltk.data.find("tokenizers/punkt")
     except LookupError:
-        download("punkt")
+        nltk.download("punkt")
 
 # Set page configuration
 st.set_page_config(layout="wide")
