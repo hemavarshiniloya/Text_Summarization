@@ -1,7 +1,10 @@
 import streamlit as st
+import nltk
+from nltk.data import find
+from nltk.download import download
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.text_rank import TextRankSummarizer  # Using TextRank summarizer
+from sumy.summarizers.text_rank import TextRankSummarizer
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -11,16 +14,14 @@ import xml.etree.ElementTree as ET
 import os
 from googletrans import Translator
 import re
-import nltk
 
-# Ensure the necessary NLTK resources are downloaded
-nltk.download("punkt")
+# Check if the 'punkt' tokenizer is downloaded
+try:
+    find("tokenizers/punkt")
+except LookupError:
+    download("punkt")
 
-# Rest of your imports
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer
-
-# Your main code follows
+# Rest of your code...
 
 # List of languages with their ISO 639-1 codes
 languages = {
