@@ -7,6 +7,7 @@ from docx import Document
 import pandas as pd
 import xml.etree.ElementTree as ET
 import re
+from googletrans import Translator
 
 # Set up the summarization pipeline with an explicit model
 model_name = "sshleifer/distilbart-cnn-12-6"
@@ -21,57 +22,79 @@ def preprocess_text(text):
     text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
     return text.strip()
 
-def extract_text_from_url(url):
-    """Extract text from a URL."""
+def translate_text(text, target_lang='en'):
+    """Translate the input text to the target language."""
+    translator = Translator()
     try:
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, "html.parser")
-        paragraphs = soup.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6"])
-        text = "\n".join([p.get_text() for p in paragraphs])
-        return text
+        translated = translator.translate(text, dest=target_lang)
+        return translated.text
     except Exception as e:
-        st.error(f"An error occurred while extracting text from URL: {str(e)}")
-        return ""
+        st.error(f"Translation error: {str(e)}")
+        return text  # Return original text on failure
 
-def extract_text_from_pdf(file):
-    """Extract text from a PDF file."""
-    reader = PdfReader(file)
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text() or ""
-    return text
-
-def extract_text_from_docx(file):
-    """Extract text from a DOCX file."""
-    doc = Document(file)
-    text = "\n".join([para.text for para in doc.paragraphs])
-    return text
-
-def extract_text_from_txt(file):
-    """Extract text from a TXT file."""
-    return file.read().decode("utf-8")
-
-def extract_text_from_html(file):
-    """Extract text from an HTML file."""
-    soup = BeautifulSoup(file.read(), "html.parser")
-    paragraphs = soup.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6"])
-    text = "\n".join([p.get_text() for p in paragraphs])
-    return text
-
-def extract_text_from_csv(file):
-    """Extract text from a CSV file."""
-    df = pd.read_csv(file)
-    return df.to_string()
-
-def extract_text_from_xml(file):
-    """Extract text from an XML file."""
-    tree = ET.parse(file)
-    root = tree.getroot()
-    text = " ".join([elem.text for elem in root.iter() if elem.text])
-    return text
+def download_summary(summary_text, filename='summary.txt'):
+    """Download the summarized text."""
+    st.download_button("Download Summary", data=summary_text, file_name=filename, mime='text/plain')
 
 def main():
     st.title("Text Summarization App")
+
+    # Language Selection for output summary
+    language_options = {
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French",
+        "de": "German",
+        "it": "Italian",
+        "pt": "Portuguese",
+        "zh-CN": "Chinese (Simplified)",
+        "zh-TW": "Chinese (Traditional)",
+        "ru": "Russian",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "ar": "Arabic",
+        "hi": "Hindi",
+        "tr": "Turkish",
+        "nl": "Dutch",
+        "sv": "Swedish",
+        "fi": "Finnish",
+        "da": "Danish",
+        "no": "Norwegian",
+        "th": "Thai",
+        "vi": "Vietnamese",
+        "tl": "Filipino",
+        "ms": "Malay",
+        "sw": "Swahili",
+        "iw": "Hebrew",
+        "bn": "Bengali",
+        "pa": "Punjabi",
+        "gu": "Gujarati",
+        "ta": "Tamil",
+        "te": "Telugu",
+        "ml": "Malayalam",
+        "mr": "Marathi",
+        "kn": "Kannada",
+        "si": "Sinhalese",
+        "ur": "Urdu",
+        "el": "Greek",
+        "hu": "Hungarian",
+        "cs": "Czech",
+        "ro": "Romanian",
+        "sl": "Slovenian",
+        "hr": "Croatian",
+        "sk": "Slovak",
+        "bg": "Bulgarian",
+        "sr": "Serbian",
+        "et": "Estonian",
+        "lv": "Latvian",
+        "lt": "Lithuanian",
+        "is": "Icelandic",
+        "af": "Afrikaans",
+        "sw": "Swahili"
+    }
+
+    # Display language selection
+    target_lang = st.selectbox("Select target language for summary:", list(language_options.keys()), format_func=lambda x: language_options[x])
 
     # Handle choice selection
     choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document"])
@@ -80,13 +103,22 @@ def main():
     if choice == "Summarize Text":
         input_text = st.text_area("Enter your text here:", height=300)
         max_length = st.number_input("Max length of summary (tokens):", min_value=1, value=150, step=1)
+        min_length = st.number_input("Min length of summary (tokens):", min_value=1, value=30, step=1)
 
         if st.button("Summarize"):
             if input_text:
                 preprocessed_text = preprocess_text(input_text)
-                summary = summarizer(preprocessed_text, max_length=max_length, min_length=30, do_sample=False)
+                # Summarize the text first
+                summary = summarizer(preprocessed_text, max_length=max_length, min_length=min_length, do_sample=False)
+                summary_text = summary[0]['summary_text']
+                
+                # Translate the summary if the target language is not English
+                if target_lang != 'en':
+                    summary_text = translate_text(summary_text, target_lang)
+
                 st.write("### Summary")
-                st.write(summary[0]['summary_text'])
+                st.write(summary_text)
+                download_summary(summary_text)
             else:
                 st.error("Please enter valid text.")
 
@@ -98,8 +130,15 @@ def main():
                 text_from_url = extract_text_from_url(url)
                 if text_from_url:
                     summary = summarizer(text_from_url, max_length=150, min_length=30, do_sample=False)
+                    summary_text = summary[0]['summary_text']
+                    
+                    # Translate the summary if the target language is not English
+                    if target_lang != 'en':
+                        summary_text = translate_text(summary_text, target_lang)
+
                     st.write("### Summary")
-                    st.write(summary[0]['summary_text'])
+                    st.write(summary_text)
+                    download_summary(summary_text)
                 else:
                     st.error("No text found at the provided URL.")
             else:
@@ -112,6 +151,7 @@ def main():
         if st.button("Summarize"):
             if uploaded_file:
                 file_type = uploaded_file.type
+                # Extract text based on file type
                 if file_type == "application/pdf":
                     all_text = extract_text_from_pdf(uploaded_file)
                 elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -127,8 +167,15 @@ def main():
 
                 if all_text:
                     summary = summarizer(all_text, max_length=150, min_length=30, do_sample=False)
+                    summary_text = summary[0]['summary_text']
+                    
+                    # Translate the summary if the target language is not English
+                    if target_lang != 'en':
+                        summary_text = translate_text(summary_text, target_lang)
+
                     st.write("### Summary")
-                    st.write(summary[0]['summary_text'])
+                    st.write(summary_text)
+                    download_summary(summary_text)
                 else:
                     st.error("No text found in the uploaded document.")
             else:
