@@ -1,5 +1,7 @@
 import streamlit as st
-from transformers import pipeline
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.lsa import LsaSummarizer
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -7,10 +9,6 @@ from docx import Document
 import pandas as pd
 import xml.etree.ElementTree as ET
 import re
-
-# Set up the summarization pipeline using a different model that doesn't rely on PyTorch
-model_name = "facebook/bart-large-cnn"
-summarizer = pipeline("summarization", model=model_name)
 
 # Set page configuration
 st.set_page_config(layout="wide")
@@ -70,6 +68,13 @@ def extract_text_from_xml(file):
     text = " ".join([elem.text for elem in root.iter() if elem.text])
     return text
 
+def summarize_text(text, num_sentences=3):
+    """Summarize the given text using LSA."""
+    parser = PlaintextParser.from_string(text, Tokenizer("english"))
+    summarizer = LsaSummarizer()
+    summary = summarizer(parser.document, num_sentences)
+    return ' '.join(str(sentence) for sentence in summary)
+
 def main():
     st.title("Text Summarization App")
 
@@ -79,27 +84,29 @@ def main():
     # Text Summarization Section
     if choice == "Summarize Text":
         input_text = st.text_area("Enter your text here:", height=300)
-        max_length = st.number_input("Max length of summary (tokens):", min_value=1, value=150, step=1)
+        num_sentences = st.number_input("Number of sentences for summary:", min_value=1, value=3, step=1)
 
         if st.button("Summarize"):
             if input_text:
                 preprocessed_text = preprocess_text(input_text)
-                summary = summarizer(preprocessed_text, max_length=max_length, min_length=30, do_sample=False)
+                summary = summarize_text(preprocessed_text, num_sentences)
                 st.write("### Summary")
-                st.write(summary[0]['summary_text'])
+                st.write(summary)
             else:
                 st.error("Please enter valid text.")
 
     # URL Summarization Section
     elif choice == "Summarize URL":
         url = st.text_input("Enter URL:")
+        num_sentences = st.number_input("Number of sentences for summary:", min_value=1, value=3, step=1)
+
         if st.button("Summarize"):
             if url:
                 text_from_url = extract_text_from_url(url)
                 if text_from_url:
-                    summary = summarizer(text_from_url, max_length=150, min_length=30, do_sample=False)
+                    summary = summarize_text(text_from_url, num_sentences)
                     st.write("### Summary")
-                    st.write(summary[0]['summary_text'])
+                    st.write(summary)
                 else:
                     st.error("No text found at the provided URL.")
             else:
@@ -126,9 +133,10 @@ def main():
                     all_text = extract_text_from_xml(uploaded_file)
 
                 if all_text:
-                    summary = summarizer(all_text, max_length=150, min_length=30, do_sample=False)
+                    num_sentences = st.number_input("Number of sentences for summary:", min_value=1, value=3, step=1)
+                    summary = summarize_text(all_text, num_sentences)
                     st.write("### Summary")
-                    st.write(summary[0]['summary_text'])
+                    st.write(summary)
                 else:
                     st.error("No text found in the uploaded document.")
             else:
