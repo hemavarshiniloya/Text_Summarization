@@ -8,7 +8,7 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import re
 
-# Set up the summarization pipeline with a different model that doesn't rely on PyTorch
+# Set up the summarization pipeline using a different model that doesn't rely on PyTorch
 model_name = "facebook/bart-large-cnn"
 summarizer = pipeline("summarization", model=model_name)
 
