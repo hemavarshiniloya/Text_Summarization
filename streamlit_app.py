@@ -11,7 +11,7 @@ import re
 
 # List of languages with their ISO 639-1 codes
 languages = {
-    "English": "en", 
+    "English": "en",
     "Afrikaans": "af",
     "Albanian": "sq",
     "Amharic": "am",
@@ -156,8 +156,7 @@ def read_xml(file_path):
     root = tree.getroot()
     text = ''
     for elem in root:
-        if elem.text:
-            text += elem.text
+        text += elem.text
     return text
 
 # Function to read CSV files
@@ -181,7 +180,7 @@ def scrape_website(url):
         st.error(f"Error fetching URL: {str(e)}")
         return ""
 
-# Function to store previous translations and summaries
+# Function to store summary and translation history
 def store_summary_and_translation(original, summary, translated):
     if "history" not in st.session_state:
         st.session_state.history = []
@@ -220,7 +219,7 @@ def main():
                     translated_summary = translate_text(summary, languages[selected_language])
 
                     # Store history
-                    store_summary_and_translation(text_input, summary, translated_summary)
+                    store_summary_and_translation(text, summary, translated_summary)
 
                     # Display results
                     st.write("📝 Original Text:")
@@ -280,15 +279,20 @@ def main():
                     st.write("🌍 Translated Summary:")
                     st.write(translated_summary)
 
+                    # Clear input
+                    clear_button = st.button("🧹 Clear Input")
+                    if clear_button:
+                        st.session_state.clear()
+
     elif input_type == "URL":
         # URL input
-        url_input = st.text_input("🌐 Enter the URL of the webpage to scrape")
+        url_input = st.text_input("🔗 Enter a URL")
 
         # Summarize and translate button
         if st.button("✨ Summarize and Translate"):
             if url_input:
                 with st.spinner("Processing..."):
-                    # Scrape text from website
+                    # Scrape website content
                     text = scrape_website(url_input)
 
                     # Preprocess text
@@ -311,6 +315,11 @@ def main():
                     st.write("🌍 Translated Summary:")
                     st.write(translated_summary)
 
+                    # Clear input
+                    clear_button = st.button("🧹 Clear Input")
+                    if clear_button:
+                        st.session_state.clear()
+
     # Show summary and translation history
     if "history" in st.session_state:
         st.write("📜 Previous Summaries and Translations:")
@@ -319,6 +328,12 @@ def main():
             st.write(f"**Summary:** {entry['Summary']}")
             st.write(f"**Translated Summary:** {entry['Translated Summary']}")
             st.write("---")
+
+        # Clear history button
+        clear_history_button = st.button("🗑️ Clear History")
+        if clear_history_button:
+            st.session_state.history.clear()  # Clear the history
+            st.success("History cleared successfully.")
 
 if __name__ == "__main__":
     main()
