@@ -118,10 +118,13 @@ st.set_page_config(layout="wide")
 
 
 def text_summary(text, max_sentences):
-    # Parse the input text
-    parser = PlaintextParser.from_string(text, Tokenizer("english"))
-    
-    # Generate the summary
+    if not text:
+        raise ValueError("Input text cannot be empty.")
+    tokenizer = Tokenizer("english")
+    parser = PlaintextParser.from_string(text, tokenizer)
+
+    # Initialize the summarizer
+    summarizer = LsaSummarizer()
     summary = summarizer(parser.document, max_sentences)
     
     # Convert summary to string
@@ -237,6 +240,21 @@ def main():
     st.title("Text Summarization App")
     import nltk
     nltk.download('punkt', quiet=True)
+
+     # Input text area
+    input_text = st.text_area("Enter text to summarize:", height=300)
+
+    # Maximum number of sentences in the summary
+    max_sentences = st.number_input("Max number of sentences in the summary:", min_value=1, max_value=10, value=3)
+    
+    # Button to trigger summarization
+    if st.button("Summarize"):
+        try:
+            summary = text_summary(input_text, max_sentences)
+            st.subheader("Summary:")
+            st.write(summary)
+        except Exception as e:
+            st.error(f"Error during text summarization: {str(e)}")
 
     # Language selection
     selected_language = st.sidebar.selectbox("Select Language", options=list(languages.keys()), index=0)
