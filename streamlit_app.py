@@ -353,10 +353,21 @@ def main():
             clear_input("Summarize Document")
 
     # Clipboard Summarization Section
-    elif choice == "Summarize Text from Clipboard":
-        if st.button("Get Clipboard Text"):
-            st.session_state.clipboard_text = st.text_area("Clipboard Text", value="", height=300)
-            st.session_state.clipboard_text = st.text_area("Clipboard Text", value=st.session_state.clipboard_text, height=300)
+    # Clipboard Summarization Section
+elif choice == "Summarize Text from Clipboard":
+    # Use a unique key for the text_area to avoid duplicate IDs
+    st.session_state.clipboard_text = st.text_area("Paste your text here:", st.session_state.clipboard_text, key="clipboard_text_area")
+
+    if st.button("Summarize Clipboard Text"):
+        if validate_input(st.session_state.clipboard_text):
+            preprocessed_text = preprocess_text(st.session_state.clipboard_text)
+            summary = text_summary(preprocessed_text, max_sentences)
+            st.write("### Summary:")
+            st.write(summary)
+            save_summary(summary)
+            download_file(summary, "summary.txt")
+        else:
+            st.error("Please paste some text to summarize.")
 
         if st.button("Summarize"):
             if validate_input(st.session_state.clipboard_text):
