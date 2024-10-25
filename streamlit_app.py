@@ -353,12 +353,10 @@ def main():
             clear_input("Summarize Document")
 
     # Clipboard Summarization Section
-    # Clipboard Summarization Section
-    def main():
-    # Line 360: Initialize max_sentences
+    
     max_sentences = 5  # Default value, can be changed by user input
     
-    # Line 361: Add user input for max_sentences
+    
     max_sentences_input = st.number_input("Select max sentences for summary:", min_value=1, value=max_sentences)
 
     # Your other code
