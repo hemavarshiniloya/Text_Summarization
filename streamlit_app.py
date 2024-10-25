@@ -12,7 +12,6 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import os
 import re
-
 # Ensure NLTK data is downloaded
 def ensure_nltk_data():
     try:
@@ -38,8 +37,8 @@ def text_summary(text, max_sentences):
     summary = summarizer(parser.document, max_sentences)
     return " ".join(str(sentence) for sentence in summary)
 
-   # Ensure NLTK data is downloaded
-   def ensure_nltk_data():
+ # Ensure NLTK data is downloaded
+def ensure_nltk_data():
        """Ensure NLTK tokenizer resources are downloaded."""
        try:
            nltk.data.find("tokenizers/punkt")
