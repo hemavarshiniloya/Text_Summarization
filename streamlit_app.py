@@ -6,11 +6,11 @@ from PyPDF2 import PdfReader
 from docx import Document
 import pandas as pd
 import xml.etree.ElementTree as ET
-import os
 import re
 
-# Set up the summarization pipeline
-summarizer = pipeline("summarization")
+# Set up the summarization pipeline with an explicit model
+model_name = "sshleifer/distilbart-cnn-12-6"
+summarizer = pipeline("summarization", model=model_name)
 
 # Set page configuration
 st.set_page_config(layout="wide")
