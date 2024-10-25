@@ -11,6 +11,16 @@ import xml.etree.ElementTree as ET
 import os
 from googletrans import Translator
 import re
+import nltk
+
+# Ensure the necessary NLTK resources are downloaded
+nltk.download("punkt")
+
+# Rest of your imports
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+
+# Your main code follows
 
 # List of languages with their ISO 639-1 codes
 languages = {
