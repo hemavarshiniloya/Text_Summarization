@@ -5,9 +5,8 @@ PyPDF2
 python-docx
 pandas
 googletrans==4.0.0-rc1
-tokenizers==0.20.1
 huggingface_hub==0.26.0
-txtai==7.5.0
-transformers==4.46.0
-tokenizers==0.20.1
+txtai
+transformers
+tokenizers
 
