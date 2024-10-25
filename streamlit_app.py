@@ -123,7 +123,7 @@ def text_summary(text):
 # Function to preprocess text
 def preprocess_text(text):
     text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
-    text = re.sub(r'[^A-Za -z0-9\s\.]+', '', text )  # Remove unwanted characters
+    text = re.sub(r'[^A-Za -z0-9\s\.]+', '', text)  # Remove unwanted characters
     return text
 
 # Function to translate text
@@ -183,21 +183,21 @@ def scrape_website(url):
 
 # Main function
 def main():
-    st.title("Text Summarization and Translation App")
+    st.title("📝 Text Summarization and Translation App")
     st.write("This app can summarize text and translate it to various languages.")
 
     # Language selection in sidebar
-    selected_language = st.sidebar.selectbox("Select a language to translate to", list(languages.keys()), index=0)
+    selected_language = st.sidebar.selectbox("🌐 Select a language to translate to", list(languages.keys()), index=0)
 
     # Input selection
-    input_type = st.selectbox("Select input type", ["Text", "File", "URL"], index=0)
+    input_type = st.selectbox("📂 Select input type", ["Text", "File", "URL"], index=0)
 
     if input_type == "Text":
         # Text input
-        text_input = st.text_area("Enter text to summarize and translate", height=200)
+        text_input = st.text_area("✏️ Enter text to summarize and translate", height=200)
 
         # Summarize and translate button
-        if st.button("Summarize and Translate", icon="✨"):
+        if st.button("✨ Summarize and Translate"):
             if text_input:
                 # Preprocess text
                 text = preprocess_text(text_input)
@@ -209,32 +209,32 @@ def main():
                 translated_summary = translate_text(summary, languages[selected_language])
 
                 # Display results
-                st.write("Original Text:")
+                st.write("📝 Original Text:")
                 st.write(text_input)
-                st.write("Summary:")
+                st.write("📄 Summary:")
                 st.write(summary)
-                st.write("Translated Summary:")
+                st.write("🌍 Translated Summary:")
                 st.write(translated_summary)
 
                 # Save results
-                st.write("Save Results:")
-                save_button = st.button("Save as Text File", icon="💾")
+                st.write("💾 Save Results:")
+                save_button = st.button("Save as Text File")
                 if save_button:
                     with open("results.txt", "w") as f:
                         f.write("Original Text:\n" + text_input + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
                     st.write("Results saved to results.txt")
 
                 # Clear input
-                clear_button = st.button("Clear Input", icon="🧹")
+                clear_button = st.button("🧹 Clear Input")
                 if clear_button:
                     st.session_state.clear()
 
     elif input_type == "File":
         # File uploader
-        file_uploaded = st.file_uploader("Upload a file (PDF, Word, XML, CSV)", type=["pdf", "docx", "xml", "csv"], accept_multiple_files=False)
+        file_uploaded = st.file_uploader("📥 Upload a file (PDF, Word, XML, CSV)", type=["pdf", "docx", "xml", "csv"], accept_multiple_files=False)
 
         # Summarize and translate button
-        if st.button("Summarize and Translate", icon="✨"):
+        if st.button("✨ Summarize and Translate"):
             if file_uploaded:
                 if file_uploaded.name.endswith('.pdf'):
                     text = read_pdf(file_uploaded)
@@ -255,65 +255,64 @@ def main():
                 translated_summary = translate_text(summary, languages[selected_language])
 
                 # Display results
-                st.write("Original Text:")
+                st.write("📝 Original Text:")
                 st.write(text)
-                st.write("Summary:")
+                st.write("📄 Summary:")
                 st.write(summary)
-                st.write("Translated Summary:")
+                st.write("🌍 Translated Summary:")
                 st.write(translated_summary)
 
                 # Save results
-                st.write("Save Results:")
-                save_button = st.button("Save as Text File", icon="💾")
+                st.write("💾 Save Results:")
+                save_button = st.button("Save as Text File")
                 if save_button:
                     with open("results.txt", "w") as f:
-                        f.write("Original Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n " + translated_summary)
+                        f.write("Original Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
                     st.write("Results saved to results.txt")
 
                 # Clear input
-                clear_button = st.button("Clear Input", icon="🧹")
+                clear_button = st.button("🧹 Clear Input")
                 if clear_button:
                     st.session_state.clear()
 
     elif input_type == "URL":
         # URL input
-        url_input = st.text_input("Enter a URL to summarize")
+        url_input = st.text_input("🌐 Enter URL to summarize")
 
-        # Summarize button
-        if st.button("Summarize URL", icon="✨"):
+        # Summarize and translate button
+        if st.button("✨ Summarize and Translate"):
             if url_input:
-                # Fetch and summarize content from the URL
-                url_text = scrape_website(url_input)
-                if url_text:
-                    # Preprocess text
-                    url_text = preprocess_text(url_text)
+                text = scrape_website(url_input)
 
-                    # Summarize text
-                    summary = text_summary(url_text)
+                # Preprocess text
+                text = preprocess_text(text)
 
-                    # Translate summary
-                    translated_summary = translate_text(summary, languages[selected_language])
+                # Summarize text
+                summary = text_summary(text)
 
-                    # Display results
-                    st.write("Original Text from URL:")
-                    st.write(url_text)
-                    st.write("Summary:")
-                    st.write(summary)
-                    st.write("Translated Summary:")
-                    st.write(translated_summary)
+                # Translate summary
+                translated_summary = translate_text(summary, languages[selected_language])
 
-                    # Save results
-                    st.write("Save Results:")
-                    save_button = st.button("Save as Text File", icon="💾")
-                    if save_button:
-                        with open("results.txt", "w") as f:
-                            f.write("Original Text from URL:\n" + url_text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
-                        st.write("Results saved to results.txt")
+                # Display results
+                st.write("📝 Scraped Text:")
+                st.write(text)
+                st.write("📄 Summary:")
+                st.write(summary)
+                st.write("🌍 Translated Summary:")
+                st.write(translated_summary)
 
-                    # Clear input
-                    clear_button = st.button("Clear Input", icon="🧹")
-                    if clear_button:
-                        st.session_state.clear()
+                # Save results
+                st.write("💾 Save Results:")
+                save_button = st.button("Save as Text File")
+                if save_button:
+                    with open("results.txt", "w") as f:
+                        f.write("Scraped Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
+                    st.write("Results saved to results.txt")
+
+                # Clear input
+                clear_button = st.button("🧹 Clear Input")
+                if clear_button:
+                    st.session_state.clear()
 
 if __name__ == "__main__":
     main()
