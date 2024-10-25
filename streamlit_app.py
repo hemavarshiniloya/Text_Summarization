@@ -5,26 +5,21 @@ from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
 from docx import Document
 import pandas as pd
-import xml.etree.ElementTree as ET
 import os
 import re
 
 # Set page configuration
 st.set_page_config(layout="wide")
 
-def text_summary(text, ratio=0.2):
+def text_summary(text, ratio):
     """Summarize the given text using Gensim's summarize."""
     if not text:
         raise ValueError("Input text cannot be empty.")
-    
-    # Summarize the text
-    summary = summarize(text, ratio=ratio)
-    return summary if summary else "Text is too short to summarize."
+    return summarize(text, ratio=ratio)
 
 def preprocess_text(text):
     """Preprocess the input text."""
     text = re.sub(r'\s+', ' ', text)  # Remove extra whitespace
-    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
     return text.strip()
 
 def extract_text_from_url(url):
@@ -90,19 +85,17 @@ def main():
         st.session_state.url = ""
     if 'uploaded_files' not in st.session_state:
         st.session_state.uploaded_files = []
-    if 'clipboard_text' not in st.session_state:
-        st.session_state.clipboard_text = ""
 
     # Handle choice selection
-    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
+    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document"])
 
     # Text Summarization Section
     if choice == "Summarize Text":
         st.session_state.text = st.text_area("Enter your text here:", value=st.session_state.text, height=300)
-        ratio = st.slider("Select summary ratio", 0.1, 1.0, 0.2)
+        ratio = st.number_input("Summary ratio (0.0 to 1.0)", min_value=0.0, max_value=1.0, value=0.2, step=0.01)
 
         if st.button("Summarize"):
-            if st.session_state.text.strip():
+            if st.session_state.text:
                 preprocessed_text = preprocess_text(st.session_state.text)
                 try:
                     summary = text_summary(preprocessed_text, ratio)
@@ -116,9 +109,6 @@ def main():
             else:
                 st.error("Please enter valid text.")
 
-        if st.button("Clear Input"):
-            st.session_state.text = ""
-
     # URL Summarization Section
     elif choice == "Summarize URL":
         st.session_state.url = st.text_input("Enter URL:", value=st.session_state.url)
@@ -126,7 +116,7 @@ def main():
         if st.button("Summarize"):
             if st.session_state.url:
                 text_from_url = extract_text_from_url(st.session_state.url)
-                if text_from_url.strip():
+                if text_from_url:
                     try:
                         summary = text_summary(text_from_url, 0.2)
                         st.write("### Summary")
@@ -140,9 +130,6 @@ def main():
                     st.error("No text found at the provided URL.")
             else:
                 st.error("Please enter a valid URL.")
-
-        if st.button("Clear Input"):
-            st.session_state.url = ""
 
     # Document Summarization Section
     elif choice == "Summarize Document":
@@ -165,7 +152,7 @@ def main():
                     elif uploaded_file.type == "application/xml":
                         all_text += extract_text_from_xml(uploaded_file)
 
-                if all_text.strip():
+                if all_text:
                     try:
                         summary = text_summary(all_text, 0.2)
                         st.write("### Summary")
@@ -179,32 +166,6 @@ def main():
                     st.error("No text found in the uploaded documents.")
             else:
                 st.error("Please upload at least one document.")
-
-        if st.button("Clear Input"):
-            st.session_state.uploaded_files = []
-
-    # Clipboard Summarization Section
-    elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Paste text from clipboard here:", value=st.session_state.clipboard_text, height=300)
-        ratio = st.slider("Select summary ratio", 0.1, 1.0, 0.2)
-
-        if st.button("Summarize"):
-            if st.session_state.clipboard_text.strip():
-                preprocessed_text = preprocess_text(st.session_state.clipboard_text)
-                try:
-                    summary = text_summary(preprocessed_text, ratio)
-                    st.write("### Summary")
-                    st.write(summary)
-
-                    # Download summary
-                    download_file(summary, "summary.txt")
-                except Exception as e:
-                    st.error(f"An error occurred during summarization: {str(e)}")
-            else:
-                st.error("Please enter valid text.")
-
-        if st.button("Clear Input"):
-            st.session_state.clipboard_text = ""
 
 if __name__ == "__main__":
     main()
