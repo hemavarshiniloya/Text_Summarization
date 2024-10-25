@@ -11,19 +11,16 @@ class TextSummarizer:
         pass
         
     def preprocess_text(self, text):
-        # Convert to lowercase and remove special characters
         text = text.lower()
         text = re.sub(r'\s+', ' ', text)
         text = re.sub(r'[^\w\s.]', '', text)
         return text
     
     def get_sentences(self, text):
-        # Simple sentence tokenization
         sentences = re.split(r'[.!?]+', text)
         return [sent.strip() for sent in sentences if sent.strip()]
     
     def get_word_frequency(self, text):
-        # Remove common words and get word frequency
         common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
         words = text.split()
         word_freq = Counter()
@@ -44,30 +41,17 @@ class TextSummarizer:
     
     def summarize(self, text, num_sentences=3):
         try:
-            # Preprocess text
             cleaned_text = self.preprocess_text(text)
-            
-            # Get sentences
             sentences = self.get_sentences(cleaned_text)
             
             if not sentences:
                 return "Could not generate summary. Text too short or invalid."
             
-            # Limit num_sentences to available sentences
             num_sentences = min(num_sentences, len(sentences))
-            
-            # Get word frequency
             word_freq = self.get_word_frequency(cleaned_text)
-            
-            # Score sentences
             sentence_scores = self.score_sentences(sentences, word_freq)
-            
-            # Get top sentences
             top_sentences = sorted(sentence_scores.items(), key=lambda x: x[1], reverse=True)[:num_sentences]
-            
-            # Reconstruct summary
             summary = '. '.join(sent for sent, score in top_sentences)
-            
             return summary.capitalize() + '.'
             
         except Exception as e:
@@ -76,11 +60,10 @@ class TextSummarizer:
 def extract_text_from_url(url):
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User -Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         response = requests.get(url, headers=headers)
         soup = BeautifulSoup(response.content, 'html.parser')
-        # Extract text from paragraphs
         paragraphs = soup.find_all('p')
         text = ' '.join([p.get_text() for p in paragraphs])
         return text
@@ -124,16 +107,16 @@ def main():
     summarizer = TextSummarizer()
 
     # Create tabs
-    tab1, tab2, tab3 = st.tabs(["Text", "URL", "Document"])
+    tab1, tab2, tab3 = st.tabs(["📝 Text", "🌐 URL", "📄 Document"])
 
     with tab1:
-        st.header("Text Input")
+        st.header("📝 Text Input")
         text_input = st.text_area("Enter your text here:", height=200)
         num_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3)
         
         if st.button("Summarize Text", key="text_button"):
             if text_input:
-                with st.spinner("Generating summary..."):
+                with st.spinner("Generating summary... "):
                     summary = summarizer.summarize(text_input, num_sentences)
                     st.success("Summary generated!")
                     st.write(summary)
@@ -141,7 +124,7 @@ def main():
                 st.warning("Please enter some text to summarize.")
 
     with tab2:
-        st.header("URL Input")
+        st.header("🌐 URL Input")
         url_input = st.text_input("Enter URL:")
         url_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3, key="url_slider")
         
@@ -159,7 +142,7 @@ def main():
                 st.warning("Please enter a URL.")
 
     with tab3:
-        st.header("Document Upload")
+        st.header("📄 Document Upload")
         uploaded_file = st.file_uploader("Upload a document", type=['pdf', 'docx'])
         doc_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3, key="doc_slider")
         
@@ -185,6 +168,7 @@ def main():
         """
         <div style="text-align: center">
             <p>Text Summarization App</p>
+            <i class="fa fa-copyright" aria-hidden="true"></i> 2023
         </div>
         """,
         unsafe_allow_html=True
