@@ -19,6 +19,11 @@ def download_nltk_data():
     except LookupError:
         nltk.download('omw-1.4')
 
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt')
+
 # Extract text from a given URL
 def extract_text_from_url(url):
     """Extract text from a given URL."""
@@ -47,6 +52,7 @@ def extract_text_from_docx(file):
 # Summarize the given text using TextBlob
 def summarize_text(text, num_sentences=3):
     """Summarize the given text using TextBlob."""
+    download_nltk_data()  # Ensure required NLTK data is downloaded
     blob = TextBlob(text)
     sentences = blob.sentences
     sorted_sentences = sorted(sentences, key=lambda s: len(s.noun_phrases), reverse=True)
@@ -56,9 +62,6 @@ def summarize_text(text, num_sentences=3):
 # Main function for the Streamlit app
 def main():
     st.title("Text Summarization App")
-
-    # Download NLTK data
-    download_nltk_data()
 
     choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document"])
 
