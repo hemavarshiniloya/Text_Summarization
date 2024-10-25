@@ -2,6 +2,7 @@ import streamlit as st
 import PyPDF2
 import docx
 import re
+import pandas as pd
 from collections import Counter
 
 class TextSummarizer:
@@ -9,19 +10,16 @@ class TextSummarizer:
         pass
         
     def preprocess_text(self, text):
-        # Convert to lowercase and remove special characters
         text = text.lower()
         text = re.sub(r'\s+', ' ', text)
         text = re.sub(r'[^\w\s.]', '', text)
         return text
     
     def get_sentences(self, text):
-        # Simple sentence tokenization
         sentences = re.split(r'[.!?]+', text)
         return [sent.strip() for sent in sentences if sent.strip()]
     
     def get_word_frequency(self, text):
-        # Remove common words and get word frequency
         common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
         words = text.split()
         word_freq = Counter()
@@ -42,28 +40,16 @@ class TextSummarizer:
     
     def summarize(self, text, num_sentences=3):
         try:
-            # Preprocess text
             cleaned_text = self.preprocess_text(text)
-            
-            # Get sentences
             sentences = self.get_sentences(cleaned_text)
             
             if not sentences:
                 return "Could not generate summary. Text too short or invalid."
             
-            # Limit num_sentences to available sentences
             num_sentences = min(num_sentences, len(sentences))
-            
-            # Get word frequency
             word_freq = self.get_word_frequency(cleaned_text)
-            
-            # Score sentences
             sentence_scores = self.score_sentences(sentences, word_freq)
-            
-            # Get top sentences
             top_sentences = sorted(sentence_scores.items(), key=lambda x: x[1], reverse=True)[:num_sentences]
-            
-            # Reconstruct summary
             summary = '. '.join(sent for sent, score in top_sentences)
             
             return summary.capitalize() + '.'
@@ -101,6 +87,18 @@ def extract_text_from_txt(txt_file):
         st.error(f"Error extracting text from TXT: {str(e)}")
         return None
 
+def extract_text_from_excel(excel_file):
+    try:
+        df = pd.read_excel(excel_file, sheet_name=None)  # Read all sheets
+        text = ""
+        for sheet_name, sheet_data in df.items():
+            text += f"Sheet: {sheet_name}\n"
+            text += sheet_data.to_string(index=False) + "\n\n"  # Convert DataFrame to string
+        return text
+    except Exception as e:
+        st.error(f"Error extracting text from Excel: {str(e)}")
+        return None
+
 def main():
     st.set_page_config(
         page_title="Multi-Document Summarizer",
@@ -109,13 +107,11 @@ def main():
     )
 
     st.title("📚 Multi-Document Summarizer")
-    st.write("Upload multiple documents (PDF, DOCX, TXT) to generate summaries.")
+    st.write("Upload multiple documents (PDF, DOCX, TXT, XLSX) to generate summaries.")
 
-    # Initialize summarizer
     summarizer = TextSummarizer()
 
-    # Create a file uploader for multiple files
-    uploaded_files = st.file_uploader("Upload documents (PDF, DOCX, TXT)", type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Upload documents (PDF, DOCX, TXT, XLSX)", type=['pdf', 'docx', 'txt', 'xlsx'], accept_multiple_files=True)
     
     num_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3)
 
@@ -124,11 +120,13 @@ def main():
             st.subheader(f"Processing {uploaded_file.name} ...")
             
             if uploaded_file.type == "application/pdf":
-                text = extract_text_from_pdf(uploaded_file)  # Corrected line
+                text = extract_text_from_pdf(uploaded_file)
             elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
                 text = extract_text_from_docx(uploaded_file)
             elif uploaded_file.type == "text/plain":
                 text = extract_text_from_txt(uploaded_file)
+            elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                text = extract_text_from_excel(uploaded_file)
             else:
                 st.error(f"Unsupported file type: {uploaded_file.type}")
                 continue
