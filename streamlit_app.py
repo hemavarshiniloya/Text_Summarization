@@ -5,37 +5,50 @@ import requests
 from bs4 import BeautifulSoup
 import PyPDF2
 import docx
+import subprocess
+import sys
 import os
 
-# Download NLTK data at app startup
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
-try:
-    nltk.data.find('corpora/wordnet')
-except LookupError:
-    nltk.download('wordnet')
-try:
-    nltk.data.find('corpora/omw-1.4')
-except LookupError:
-    nltk.download('omw-1.4')
+# Initialize session state for tracking downloads
+if 'nltk_downloaded' not in st.session_state:
+    st.session_state.nltk_downloaded = False
 
-# Cache the NLTK downloads
+# Function to download TextBlob corpora
+def download_textblob_corpora():
+    try:
+        subprocess.check_call([
+            sys.executable, 
+            "-m", 
+            "textblob.download_corpora"
+        ])
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+# Function to download NLTK data
 @st.cache_resource
 def download_nltk_data():
-    """Download and cache NLTK data."""
+    """Download all necessary NLTK and TextBlob data."""
     try:
-        nltk.data.find('tokenizers/punkt')
-        nltk.data.find('corpora/wordnet')
-        nltk.data.find('corpora/omw-1.4')
-    except LookupError:
+        # Download NLTK data
         nltk.download('punkt')
+        nltk.download('averaged_perceptron_tagger')
+        nltk.download('brown')
         nltk.download('wordnet')
         nltk.download('omw-1.4')
+        
+        # Download TextBlob corpora
+        if not st.session_state.nltk_downloaded:
+            success = download_textblob_corpora()
+            if success:
+                st.session_state.nltk_downloaded = True
+                return True
+        return True
+    except Exception as e:
+        st.error(f"Error downloading required data: {str(e)}")
+        return False
 
-# Function to extract text from a given URL
-@st.cache_data
+# Function to extract text from URL
 def extract_text_from_url(url):
     """Extract text from a given URL."""
     try:
@@ -77,14 +90,14 @@ def extract_text_from_docx(file):
 @st.cache_data
 def summarize_text(text, num_sentences=3):
     """Summarize the given text."""
+    if not text:
+        return ""
+    
     try:
-        # Ensure NLTK data is downloaded
-        download_nltk_data()
-        
         # Create TextBlob object
         blob = TextBlob(text)
         
-        # Get sentences and sort by importance (using length of noun phrases as a simple metric)
+        # Get sentences and sort by importance
         sentences = blob.sentences
         sentence_scores = [(sentence, len(sentence.noun_phrases)) for sentence in sentences]
         sorted_sentences = sorted(sentence_scores, key=lambda x: x[1], reverse=True)
@@ -96,7 +109,7 @@ def summarize_text(text, num_sentences=3):
         return summary
     except Exception as e:
         st.error(f"Error in summarization: {str(e)}")
-        return "Error occurred during summarization."
+        return ""
 
 def main():
     # Set page configuration
@@ -106,8 +119,13 @@ def main():
         layout="wide"
     )
 
-    # Download NLTK data at startup
-    download_nltk_data()
+    # Download required data at startup
+    with st.spinner("Downloading required data..."):
+        if download_nltk_data():
+            st.success("Required data downloaded successfully!")
+        else:
+            st.error("Failed to download required data. Please try refreshing the page.")
+            return
 
     st.title("📝 Text Summarization App")
     st.markdown("---")
@@ -126,9 +144,10 @@ def main():
                 if input_text:
                     with st.spinner("Generating summary..."):
                         summary = summarize_text(input_text, num_sentences)
-                        st.success("Summary generated!")
-                        st.markdown("### Summary")
-                        st.write(summary)
+                        if summary:
+                            st.success("Summary generated!")
+                            st.markdown("### Summary")
+                            st.write(summary)
                 else:
                     st.warning("Please enter some text to summarize.")
 
@@ -145,9 +164,10 @@ def main():
                         text = extract_text_from_url(url)
                         if text:
                             summary = summarize_text(text, num_sentences)
-                            st.success("Summary generated!")
-                            st.markdown("### Summary")
-                            st.write(summary)
+                            if summary:
+                                st.success("Summary generated!")
+                                st.markdown("### Summary")
+                                st.write(summary)
                         else:
                             st.error("Could not extract text from the URL.")
                 else:
@@ -170,9 +190,10 @@ def main():
                         
                         if text:
                             summary = summarize_text(text, num_sentences)
-                            st.success("Summary generated!")
-                            st.markdown("### Summary")
-                            st.write(summary)
+                            if summary:
+                                st.success("Summary generated!")
+                                st.markdown("### Summary")
+                                st.write(summary)
                         else:
                             st.error("Could not extract text from the document.")
                 else:
