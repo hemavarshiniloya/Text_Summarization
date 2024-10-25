@@ -18,10 +18,11 @@ import re
 nltk.download("punkt", quiet=True)
 
 # Ensure the required tokenizer is downloaded
-try:
-    find("tokenizers/punkt")
-except LookupError:
-    nltk.download("punkt")
+def ensure_nltk_data():
+    try:
+        find("tokenizers/punkt")
+    except LookupError:
+        nltk.download("punkt")
 
 # List of languages with their ISO 639-1 codes
 languages = {
@@ -114,14 +115,11 @@ def text_summary(text, max_sentences):
     """Summarize the given text using LSA summarizer."""
     if not text:
         raise ValueError("Input text cannot be empty.")
+
+    # Ensure NLTK data is available
+    ensure_nltk_data()
     
-    # Use a try-except block to handle potential LookupError when creating Tokenizer
-    try:
-        tokenizer = Tokenizer("english")
-    except LookupError:
-        st.error("Tokenizer for English not found. Please ensure NLTK data is installed.")
-        return ""
-    
+    tokenizer = Tokenizer("english")
     parser = PlaintextParser.from_string(text, tokenizer)
     summarizer = LsaSummarizer()
     summary = summarizer(parser.document, max_sentences)
@@ -246,92 +244,118 @@ def main():
             if validate_input(st.session_state.text):
                 preprocessed_text = preprocess_text(st.session_state.text)
                 summary = text_summary(preprocessed_text, max_sentences)
-                st.success("Summary:")
+                st.write("### Summary")
                 st.write(summary)
+
+                # Save summary to history
                 save_summary(summary)
+
+                # Download summary
+                download_file(summary, "summary.txt")
             else:
                 st.error("Please enter valid text.")
 
+        if st.button("Clear Input"):
+            clear_input("Summarize Text")
+
     # URL Summarization Section
     elif choice == "Summarize URL":
-        st.session_state.url = st.text_input("Enter the URL here:", value=st.session_state.url)
+        st.session_state.url = st.text_input("Enter URL:", value=st.session_state.url)
 
         if st.button("Summarize"):
-            if validate_input(st.session_state.url):
-                extracted_text = extract_text_from_url(st.session_state.url)
-                if extracted_text:
-                    preprocessed_text = preprocess_text(extracted_text)
-                    summary = text_summary(preprocessed_text, 2)
-                    st.success("Summary:")
+            if st.session_state.url:
+                text_from_url = extract_text_from_url(st.session_state.url)
+                if validate_input(text_from_url):
+                    summary = text_summary(text_from_url, 2)
+                    st.write("### Summary")
                     st.write(summary)
+
+                    # Save summary to history
                     save_summary(summary)
+
+                    # Download summary
+                    download_file(summary, "summary.txt")
                 else:
                     st.error("No text found at the provided URL.")
             else:
                 st.error("Please enter a valid URL.")
 
+        if st.button("Clear Input"):
+            clear_input("Summarize URL")
+
     # Document Summarization Section
     elif choice == "Summarize Document":
-        uploaded_files = st.file_uploader("Upload files", type=["pdf", "docx", "txt", "csv", "xml", "html"], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Choose a file (PDF, DOCX, TXT, HTML, CSV, XML)", accept_multiple_files=True)
 
-        if uploaded_files:
-            st.session_state.uploaded_files = uploaded_files
+        if st.button("Summarize"):
+            if uploaded_files:
+                all_text = ""
+                for uploaded_file in uploaded_files:
+                    if uploaded_file.type == "application/pdf":
+                        all_text += extract_text_from_pdf(uploaded_file)
+                    elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                        all_text += extract_text_from_docx(uploaded_file)
+                    elif uploaded_file.type == "text/plain":
+                        all_text += extract_text_from_txt(uploaded_file)
+                    elif uploaded_file.type == "text/html":
+                        all_text += extract_text_from_html(uploaded_file)
+                    elif uploaded_file.type == "text/csv":
+                        all_text += extract_text_from_csv(uploaded_file)
+                    elif uploaded_file.type == "application/xml":
+                        all_text += extract_text_from_xml(uploaded_file)
 
-            for uploaded_file in st.session_state.uploaded_files:
-                if uploaded_file.type == "application/pdf":
-                    text = extract_text_from_pdf(uploaded_file)
-                elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                    text = extract_text_from_docx(uploaded_file)
-                elif uploaded_file.type == "text/plain":
-                    text = extract_text_from_txt(uploaded_file)
-                elif uploaded_file.type == "text/html":
-                    text = extract_text_from_html(uploaded_file)
-                elif uploaded_file.type == "application/xml":
-                    text = extract_text_from_xml(uploaded_file)
-                elif uploaded_file.type == "text/csv":
-                    text = extract_text_from_csv(uploaded_file)
-                else:
-                    st.error("Unsupported file type.")
-                    continue
-
-                if text:
-                    preprocessed_text = preprocess_text(text)
-                    summary = text_summary(preprocessed_text, 2)
-                    st.success(f"Summary of {uploaded_file.name}:")
+                if validate_input(all_text):
+                    summary = text_summary(all_text, 2)
+                    st.write("### Summary")
                     st.write(summary)
+
+                    # Save summary to history
                     save_summary(summary)
+
+                    # Download summary
+                    download_file(summary, "summary.txt")
+                else:
+                    st.error("No text found in the uploaded documents.")
+            else:
+                st.error("Please upload at least one document.")
+
+        if st.button("Clear Input"):
+            clear_input("Summarize Document")
 
     # Clipboard Summarization Section
     elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Paste your text here:", value=st.session_state.clipboard_text, height=300)
+        st.session_state.clipboard_text = st.text_area("Paste your clipboard text here:", value=st.session_state.clipboard_text, height=300)
 
         if st.button("Summarize"):
             if validate_input(st.session_state.clipboard_text):
                 preprocessed_text = preprocess_text(st.session_state.clipboard_text)
                 summary = text_summary(preprocessed_text, 2)
-                st.success("Summary:")
+                st.write("### Summary")
                 st.write(summary)
+
+                # Save summary to history
                 save_summary(summary)
+
+                # Download summary
+                download_file(summary, "summary.txt")
             else:
                 st.error("Please enter valid text.")
 
-    # History Section
-    if st.sidebar.button("View Summary History"):
+        if st.button("Clear Input"):
+            clear_input("Summarize Text from Clipboard")
+
+    # Display summary history
+    if st.sidebar.button("Show Summary History"):
         history = load_summary_history()
         if history:
-            st.text_area("Summary History", history, height=300)
+            st.sidebar.write("### Summary History")
+            st.sidebar.text_area("Previous Summaries", value=history, height=300)
         else:
-            st.info("No summary history found.")
+            st.sidebar.write("No summary history available.")
 
-    # Clear History Section
     if st.sidebar.button("Clear Summary History"):
         clear_summary_history()
-        st.success("Summary history cleared.")
-
-    # Clear Input Section
-    if st.sidebar.button("Clear Input"):
-        clear_input(choice)
-        st.success("Input cleared.")
+        st.sidebar.success("Summary history cleared.")
 
 if __name__ == "__main__":
     main()
