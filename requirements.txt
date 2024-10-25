@@ -1,11 +1,7 @@
 streamlit
-googletrans==4.0.0-rc1
-gensim
+nltk
+textblob
 requests
 beautifulsoup4
 PyPDF2
 python-docx
-pandas
-lxml
-textblob
-nltk
