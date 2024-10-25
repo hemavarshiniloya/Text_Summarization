@@ -1,9 +1,5 @@
 import streamlit as st
-import nltk
-from nltk.tokenize import sent_tokenize
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.lsa import LsaSummarizer
+from gensim.summarization import summarize
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -13,30 +9,17 @@ import xml.etree.ElementTree as ET
 import os
 import re
 
-# Ensure NLTK data is downloaded
-def ensure_nltk_data():
-    try:
-        nltk.data.find("tokenizers/punkt")
-    except LookupError:
-        nltk.download("punkt")  # Download the 'punkt' tokenizer
-
 # Set page configuration
 st.set_page_config(layout="wide")
 
-def text_summary(text, max_sentences):
-    """Summarize the given text using LSA summarizer."""
+def text_summary(text, ratio=0.2):
+    """Summarize the given text using Gensim's summarize."""
     if not text:
         raise ValueError("Input text cannot be empty.")
-
-    # Ensure NLTK data is available
-    ensure_nltk_data()
-
-    # Initialize the Tokenizer with the required language
-    tokenizer = Tokenizer("english")  # Specify language here
-    parser = PlaintextParser.from_string(text, tokenizer)
-    summarizer = LsaSummarizer()
-    summary = summarizer(parser.document, max_sentences)
-    return " ".join(str(sentence) for sentence in summary)
+    
+    # Summarize the text
+    summary = summarize(text, ratio=ratio)
+    return summary if summary else "Text is too short to summarize."
 
 def preprocess_text(text):
     """Preprocess the input text."""
@@ -93,41 +76,6 @@ def extract_text_from_xml(file):
     text = " ".join([elem.text for elem in root.iter() if elem.text])
     return text
 
-def save_summary(summary):
-    """Save summary to history."""
-    filename = "summary_history.txt"
-    with open(filename, "a", encoding="utf-8") as f:
-        f.write(summary + "\n\n")
-
-def load_summary_history():
-    """Load summary history."""
-    filename = "summary_history.txt"
-    if os.path.exists(filename):
-        with open(filename, "r", encoding="utf-8") as f:
-            return f.read()
-    return ""
-
-def clear_summary_history():
-    """Clear summary history."""
-    filename = "summary_history.txt"
-    if os.path.exists(filename):
-        os.remove(filename)
-
-def clear_input(choice):
-    """Clear input fields based on choice."""
-    if choice == "Summarize Text":
-        st.session_state.text = ""
-    elif choice == "Summarize URL":
-        st.session_state.url = ""
-    elif choice == "Summarize Document":
-        st.session_state.uploaded_files = []
-    elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = ""
-
-def validate_input(text):
-    """Validate input text."""
-    return bool(text and text.strip())
-
 def download_file(content, filename):
     """Download file functionality."""
     st.download_button(label="Download Summary", data=content, file_name=filename, mime="text/plain")
@@ -145,27 +93,21 @@ def main():
     if 'clipboard_text' not in st.session_state:
         st.session_state.clipboard_text = ""
 
-    # Ensure NLTK data is available
-    ensure_nltk_data()
-
     # Handle choice selection
     choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document", "Summarize Text from Clipboard"])
 
     # Text Summarization Section
     if choice == "Summarize Text":
         st.session_state.text = st.text_area("Enter your text here:", value=st.session_state.text, height=300)
-        max_sentences = st.number_input("Maximum number of sentences for summary", min_value=1, value=2, step=1)
+        ratio = st.slider("Select summary ratio", 0.1, 1.0, 0.2)
 
         if st.button("Summarize"):
-            if validate_input(st.session_state.text):
+            if st.session_state.text.strip():
                 preprocessed_text = preprocess_text(st.session_state.text)
                 try:
-                    summary = text_summary(preprocessed_text, max_sentences)
+                    summary = text_summary(preprocessed_text, ratio)
                     st.write("### Summary")
                     st.write(summary)
-
-                    # Save summary to history
-                    save_summary(summary)
 
                     # Download summary
                     download_file(summary, "summary.txt")
@@ -175,7 +117,7 @@ def main():
                 st.error("Please enter valid text.")
 
         if st.button("Clear Input"):
-            clear_input("Summarize Text")
+            st.session_state.text = ""
 
     # URL Summarization Section
     elif choice == "Summarize URL":
@@ -184,14 +126,11 @@ def main():
         if st.button("Summarize"):
             if st.session_state.url:
                 text_from_url = extract_text_from_url(st.session_state.url)
-                if validate_input(text_from_url):
+                if text_from_url.strip():
                     try:
-                        summary = text_summary(text_from_url, 2)
+                        summary = text_summary(text_from_url, 0.2)
                         st.write("### Summary")
                         st.write(summary)
-
-                        # Save summary to history
-                        save_summary(summary)
 
                         # Download summary
                         download_file(summary, "summary.txt")
@@ -203,7 +142,7 @@ def main():
                 st.error("Please enter a valid URL.")
 
         if st.button("Clear Input"):
-            clear_input("Summarize URL")
+            st.session_state.url = ""
 
     # Document Summarization Section
     elif choice == "Summarize Document":
@@ -226,14 +165,11 @@ def main():
                     elif uploaded_file.type == "application/xml":
                         all_text += extract_text_from_xml(uploaded_file)
 
-                if validate_input(all_text):
+                if all_text.strip():
                     try:
-                        summary = text_summary(all_text, 2)
+                        summary = text_summary(all_text, 0.2)
                         st.write("### Summary")
                         st.write(summary)
-
-                        # Save summary to history
-                        save_summary(summary)
 
                         # Download summary
                         download_file(summary, "summary.txt")
@@ -245,23 +181,20 @@ def main():
                 st.error("Please upload at least one document.")
 
         if st.button("Clear Input"):
-            clear_input("Summarize Document")
+            st.session_state.uploaded_files = []
 
     # Clipboard Summarization Section
     elif choice == "Summarize Text from Clipboard":
         st.session_state.clipboard_text = st.text_area("Paste text from clipboard here:", value=st.session_state.clipboard_text, height=300)
-        max_sentences = st.number_input("Maximum number of sentences for summary", min_value=1, value=2, step=1)
+        ratio = st.slider("Select summary ratio", 0.1, 1.0, 0.2)
 
         if st.button("Summarize"):
-            if validate_input(st.session_state.clipboard_text):
+            if st.session_state.clipboard_text.strip():
                 preprocessed_text = preprocess_text(st.session_state.clipboard_text)
                 try:
-                    summary = text_summary(preprocessed_text, max_sentences)
+                    summary = text_summary(preprocessed_text, ratio)
                     st.write("### Summary")
                     st.write(summary)
-
-                    # Save summary to history
-                    save_summary(summary)
 
                     # Download summary
                     download_file(summary, "summary.txt")
@@ -271,16 +204,7 @@ def main():
                 st.error("Please enter valid text.")
 
         if st.button("Clear Input"):
-            clear_input("Summarize Text from Clipboard")
-
-    # Summary History Section
-    if st.sidebar.button("Show Summary History"):
-        history = load_summary_history()
-        st.sidebar.text_area("Summary History", value=history, height=300)
-
-    if st.sidebar.button("Clear Summary History"):
-        clear_summary_history()
-        st.sidebar.success("Summary history cleared.")
+            st.session_state.clipboard_text = ""
 
 if __name__ == "__main__":
     main()
