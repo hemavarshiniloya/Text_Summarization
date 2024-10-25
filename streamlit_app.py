@@ -1,32 +1,21 @@
 import streamlit as st
 import PyPDF2
 import docx
-import re
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-from collections import Counter
 from transformers import pipeline
 
 class TextSummarizer:
     def __init__(self, language='english'):
         self.language = language
-        self.summarizer = pipeline("summarization", model="facebook/bart-large-cnn" if language == 'english' else "google/mt5-small")
+        # Initialize the summarization pipeline
+        self.summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
-    def preprocess_text(self, text):
-        text = text.lower()
-        text = re.sub(r'\s+', ' ', text)
-        text = re.sub(r'[^\w\s.]', '', text)
-        return text
-    
-    def get_sentences(self, text):
-        sentences = re.split(r'[.!?]+', text)
-        return [sent.strip() for sent in sentences if sent.strip()]
-    
     def summarize(self, text, num_sentences=3):
         try:
-            cleaned_text = self.preprocess_text(text)
-            summary = self.summarizer(cleaned_text, max_length=130, min_length=30, do_sample=False)
+            # Summarize the text
+            summary = self.summarizer(text, max_length=130, min_length=30, do_sample=False)
             return summary[0]['summary_text']
         except Exception as e:
             return f"An error occurred while summarizing: {str(e)}"
@@ -87,18 +76,100 @@ def extract_text_from_url(url):
 
 def main():
     st.set_page_config(
-        page_title="Summarizer",
+        page_title="Summarization",
         page_icon="📚",
         layout="wide"
     )
 
-    st.title("📚 Summarizer")
+    st.title("Summarization")  # Updated title
     st.write("Upload multiple documents (PDF, DOCX, TXT, XLSX), input text directly, or enter a URL to generate summaries.")
 
-    language = st.selectbox("Select Language for Summarization:", ["english", "spanish", "french", "german"])  # Add more languages as needed
+    # Language selection
+    language = st.selectbox("Select Language for Summarization:", ["English": "en",
+    "Afrikaans": "af",
+    "Albanian": "sq",
+    "Arabic": "ar",
+    "Armenian": "hy",
+    "Azerbaijani": "az",
+    "Basque": "eu",
+    "Belarusian": "be",
+    "Bengali": "bn",
+    "Bosnian": "bs",
+    "Bulgarian": "bg",
+    "Catalan": "ca",
+    "Chinese (Simplified)": "zh-cn",
+    "Chinese (Traditional)": "zh-tw",
+    "Croatian": "hr",
+    "Czech": "cs",
+    "Danish": "da",
+    "Dutch": "nl",
+    "English": "en",
+    "Estonian": "et",
+    "Finnish": "fi",
+    "French": "fr",
+    "Galician": "gl",
+    "Georgian": "ka",
+    "German": "de",
+    "Greek": "el",
+    "Gujarati": "gu",
+    "Haitian Creole": "ht",
+    "Hebrew": "iw",
+    "Hindi": "hi",
+    "Hungarian": "hu",
+    "Icelandic": "is",
+    "Igbo": "ig",
+    "Indonesian": "id",
+    "Irish": "ga",
+    "Italian": "it",
+    "Japanese": "ja",
+    "Javanese": "jw",
+    "Kazakh": "kk",
+    "Korean": "ko",
+    "Kurdish": "ku",
+    "Kyrgyz": "ky",
+    "Lao": "lo",
+    "Latin": "la",
+    "Latvian": "lv",
+    "Lithuanian": "lt",
+    "Luxembourgish": "lb",
+    "Macedonian": "mk",
+    "Malagasy": "mg",
+    "Malay": "ms",
+    "Malayalam": "ml",
+    "Maltese": "mt",
+    "Maori": "mi",
+    "Marathi": "mr",
+    "Mongolian": "mn",
+    "Nepali": "ne",
+    "Norwegian": "no",
+    "Pashto": "ps",
+    "Persian": "fa",
+    "Polish": "pl",
+    "Portuguese": "pt",
+    "Punjabi": "pa",
+    "Romanian": "ro",
+    "Russian": "ru",
+    "Serbian": "sr",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Spanish": "es",
+    "Swahili": "sw",
+    "Swedish": "sv",
+    "Tagalog": "tl",
+    "Thai": "th",
+    "Turkish": "tr",
+    "Ukrainian": "uk",
+    "Urdu": "ur",
+    "Vietnamese": "vi",
+    "Welsh": "cy",
+    "Xhosa": "xh",
+    "Yiddish": "yi",
+    "Yoruba": "yo",
+    "Zulu": "zu",])  # Add more languages as needed
     summarizer = TextSummarizer(language)
 
-    uploaded_files = st.file_uploader("Upload documents (PDF, DOCX, TXT, XLSX)", type=['pdf', 'docx', 'txt', 'xlsx'], accept_multiple _files=True)
+    # File uploader for multiple files
+    uploaded_files = st.file_uploader("Upload documents (PDF, DOCX, TXT, XLSX)", type=['pdf', 'docx', 'txt', 'xlsx'], accept_multiple_files=True)
     input_text = st.text_area("Input text directly:")
     input_url = st.text_input("Enter a URL:")
 
@@ -117,28 +188,37 @@ def main():
             elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
                 text = extract_text_from_excel(uploaded_file)
             else:
-                st.error(f"Unsupported file type: {uploaded_file.type}")
+                st.error("Unsupported file type.")
                 continue
             
             if text:
+                st.write("Extracted Text:")
+                st.write(text)
                 summary = summarizer.summarize(text, num_sentences)
-                st.write(f"**Summary of {uploaded_file.name}**: {summary}")
+                st.write("Summary:")
+                st.write(summary)
             else:
-                st.write(f"**Error processing {uploaded_file.name}**")
+                st.error("Failed to extract text from the file.")
 
     if input_text:
-        st.subheader("Processing input text ...")
+        st.write("Input Text:")
+        st.write(input_text)
         summary = summarizer.summarize(input_text, num_sentences)
-        st.write(f"**Summary of input text**: {summary}")
+        st.write("Summary:")
+        st.write(summary)
 
     if input_url:
-        st.subheader("Processing URL ...")
+        st.write("Input URL:")
+        st.write(input_url)
         text = extract_text_from_url(input_url)
         if text:
+            st.write("Extracted Text:")
+            st.write(text)
             summary = summarizer.summarize(text, num_sentences)
-            st.write(f"**Summary of {input_url}**: {summary}")
+            st.write("Summary:")
+            st.write(summary)
         else:
-            st.write(f"**Error processing {input_url}**")
+            st.error("Failed to extract text from the URL.")
 
 if __name__ == "__main__":
     main()
