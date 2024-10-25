@@ -1,7 +1,6 @@
 import streamlit as st
 import nltk
 from nltk.data import find
-from nltk.download import download
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.text_rank import TextRankSummarizer
@@ -19,7 +18,10 @@ import re
 try:
     find("tokenizers/punkt")
 except LookupError:
-    download("punkt")
+    nltk.download("punkt")
+
+# Rest of your code...
+
 
 # Rest of your code...
 
