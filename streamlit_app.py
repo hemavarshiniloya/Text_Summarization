@@ -4,10 +4,16 @@ from transformers import pipeline
 class TextSummarizer:
     def __init__(self, model_name="facebook/bart-large-cnn"):
         """Initialize the summarization pipeline with the specified model."""
-        self.summarizer = pipeline("summarization", model=model_name)
+        try:
+            self.summarizer = pipeline("summarization", model=model_name)
+        except Exception as e:
+            st.error(f"Error loading model: {e}")
+            self.summarizer = None  # Set to None if model loading fails
 
     def summarize(self, text):
         """Summarize the input text."""
+        if not self.summarizer:
+            return "Model not loaded. Please check the model name or dependencies."
         if len(text) < 50:
             return "Text is too short for summarization."
         summary = self.summarizer(text, max_length=130, min_length=30, do_sample=False)
