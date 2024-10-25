@@ -1,4 +1,5 @@
 import streamlit as st
+import gensim
 from gensim.summarization import summarize
 import requests
 from bs4 import BeautifulSoup
