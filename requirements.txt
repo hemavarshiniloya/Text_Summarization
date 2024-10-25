@@ -5,7 +5,8 @@ PyPDF2
 python-docx
 pandas
 transformers
-torch==2.5.0
+torch
 requests
 lxml
 googletrans==4.0.0-rc1
+
