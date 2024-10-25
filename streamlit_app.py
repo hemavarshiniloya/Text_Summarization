@@ -10,7 +10,6 @@ import xml.etree.ElementTree as ET
 import os
 import re
 
-
 # List of languages with their ISO 639-1 codes
 languages = {
     "English": "en", 
@@ -118,7 +117,7 @@ st.set_page_config(layout="wide")
 # Initialize text summarizer
 def text_summary(text, maxlength=None):
     summary = Summary()
-    result = summary(text)
+ result = summary(text)
     return result
 
 # Function to preprocess text
@@ -223,6 +222,19 @@ def main():
         st.write(summary)
         st.write("Translated Summary:")
         st.write(translated_summary)
+
+        # Save results
+        st.write("Save Results:")
+        save_button = st.button("Save as Text File")
+        if save_button:
+            with open("results.txt", "w") as f:
+                f.write("Original Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
+            st.write("Results saved to results.txt")
+
+        # Clear input
+        clear_button = st.button("Clear Input")
+        if clear_button:
+            st.session_state.clear()
 
 if __name__ == "__main__":
     main()
