@@ -18,7 +18,7 @@ def ensure_nltk_data():
     try:
         nltk.data.find("tokenizers/punkt")
     except LookupError:
-        nltk.download("punkt")
+        nltk.download("punkt")  # Download the 'punkt' tokenizer
 
 # Set page configuration
 st.set_page_config(layout="wide")
@@ -240,21 +240,23 @@ def main():
                     except Exception as e:
                         st.error(f"An error occurred during summarization: {str(e)}")
                 else:
-                    st.error("No text found in the uploaded files.")
+                    st.error("No text found in the uploaded documents.")
             else:
-                st.error("Please upload at least one file.")
+                st.error("Please upload at least one document.")
 
         if st.button("Clear Input"):
             clear_input("Summarize Document")
 
     # Clipboard Summarization Section
     elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Paste your clipboard text here:", value=st.session_state.clipboard_text, height=300)
+        st.session_state.clipboard_text = st.text_area("Paste text from clipboard here:", value=st.session_state.clipboard_text, height=300)
+        max_sentences = st.number_input("Maximum number of sentences for summary", min_value=1, value=2, step=1)
 
         if st.button("Summarize"):
             if validate_input(st.session_state.clipboard_text):
+                preprocessed_text = preprocess_text(st.session_state.clipboard_text)
                 try:
-                    summary = text_summary(st.session_state.clipboard_text, 2)
+                    summary = text_summary(preprocessed_text, max_sentences)
                     st.write("### Summary")
                     st.write(summary)
 
@@ -272,13 +274,9 @@ def main():
             clear_input("Summarize Text from Clipboard")
 
     # Summary History Section
-    if st.sidebar.button("View Summary History"):
-        summary_history = load_summary_history()
-        if summary_history:
-            st.sidebar.write("### Summary History")
-            st.sidebar.write(summary_history)
-        else:
-            st.sidebar.write("No summary history available.")
+    if st.sidebar.button("Show Summary History"):
+        history = load_summary_history()
+        st.sidebar.text_area("Summary History", value=history, height=300)
 
     if st.sidebar.button("Clear Summary History"):
         clear_summary_history()
