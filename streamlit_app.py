@@ -38,6 +38,14 @@ def text_summary(text, max_sentences):
     summary = summarizer(parser.document, max_sentences)
     return " ".join(str(sentence) for sentence in summary)
 
+   # Ensure NLTK data is downloaded
+   def ensure_nltk_data():
+       """Ensure NLTK tokenizer resources are downloaded."""
+       try:
+           nltk.data.find("tokenizers/punkt")
+       except LookupError:
+           nltk.download("punkt", quiet=True)  # Download 'punkt' quietly
+
 def preprocess_text(text):
     """Preprocess the input text."""
     text = re.sub(r'\s+', ' ', text)  # Remove extra whitespace
