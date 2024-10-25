@@ -1,58 +1,89 @@
 import streamlit as st
-import spacy
 import requests
 from bs4 import BeautifulSoup
 import PyPDF2
 import docx
 from collections import Counter
-from heapq import nlargest
-import io
-
-# Load spaCy model
-@st.cache_resource
-def load_spacy_model():
-    return spacy.load("en_core_web_sm")
+import re
 
 class TextSummarizer:
     def __init__(self):
-        self.nlp = load_spacy_model()
-
-    def summarize(self, text, num_sentences=3):
-        # Preprocess and clean the text
-        doc = self.nlp(text)
+        pass
         
-        # Calculate word frequencies
+    def preprocess_text(self, text):
+        # Convert to lowercase and remove special characters
+        text = text.lower()
+        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r'[^\w\s.]', '', text)
+        return text
+    
+    def get_sentences(self, text):
+        # Simple sentence tokenization
+        sentences = re.split(r'[.!?]+', text)
+        return [sent.strip() for sent in sentences if sent.strip()]
+    
+    def get_word_frequency(self, text):
+        # Remove common words and get word frequency
+        common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
+        words = text.split()
         word_freq = Counter()
-        for word in doc:
-            if not word.is_stop and not word.is_punct and word.text.strip():
-                word_freq[word.text.lower()] += 1
-
-        # Normalize frequencies
-        max_freq = max(word_freq.values()) if word_freq else 1
-        normalized_freq = {word: freq/max_freq for word, freq in word_freq.items()}
-
-        # Score sentences
-        sent_strength = {}
-        for sent in doc.sents:
-            for word in sent:
-                if word.text.lower() in normalized_freq:
-                    if sent in sent_strength:
-                        sent_strength[sent] += normalized_freq[word.text.lower()]
-                    else:
-                        sent_strength[sent] = normalized_freq[word.text.lower()]
-
-        # Get top sentences
-        summarized_sentences = nlargest(num_sentences, sent_strength, key=sent_strength.get)
-        summary = ' '.join([str(sent) for sent in summarized_sentences])
         
-        return summary
+        for word in words:
+            if word not in common_words:
+                word_freq[word] += 1
+                
+        return word_freq
+    
+    def score_sentences(self, sentences, word_freq):
+        sentence_scores = {}
+        for sentence in sentences:
+            words = sentence.split()
+            score = sum(word_freq.get(word, 0) for word in words)
+            sentence_scores[sentence] = score
+        return sentence_scores
+    
+    def summarize(self, text, num_sentences=3):
+        try:
+            # Preprocess text
+            cleaned_text = self.preprocess_text(text)
+            
+            # Get sentences
+            sentences = self.get_sentences(cleaned_text)
+            
+            if not sentences:
+                return "Could not generate summary. Text too short or invalid."
+            
+            # Limit num_sentences to available sentences
+            num_sentences = min(num_sentences, len(sentences))
+            
+            # Get word frequency
+            word_freq = self.get_word_frequency(cleaned_text)
+            
+            # Score sentences
+            sentence_scores = self.score_sentences(sentences, word_freq)
+            
+            # Get top sentences
+            top_sentences = sorted(sentence_scores.items(), key=lambda x: x[1], reverse=True)[:num_sentences]
+            
+            # Reconstruct summary
+            summary = '. '.join(sent for sent, score in top_sentences)
+            
+            return summary.capitalize() + '.'
+            
+        except Exception as e:
+            return f"An error occurred while summarizing: {str(e)}"
 
 def extract_text_from_url(url):
     try:
-        response = requests.get(url)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers)
         soup = BeautifulSoup(response.content, 'html.parser')
+        # Extract text from paragraphs
         paragraphs = soup.find_all('p')
-        return ' '.join([p.get_text() for p in paragraphs])
+        text = ' '.join([p.get_text() for p in paragraphs])
+        return text
     except Exception as e:
         st.error(f"Error extracting text from URL: {str(e)}")
         return None
@@ -153,7 +184,7 @@ def main():
     st.markdown(
         """
         <div style="text-align: center">
-            <p>Made with ❤️ by Your Hema Varshini Loya</p>
+            <p>Text Summarization App</p>
         </div>
         """,
         unsafe_allow_html=True
