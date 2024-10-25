@@ -10,5 +10,26 @@ txtai
 transformers
 tokenizer
 sumy
+streamlit
+faiss-cpu
+easyocr
+python-bidi
+lxml
+pytesseract
+Pillow
+python-pptx
+transformers
+googletrans==4.0.0-rc1
+textblob
+beautifulsoup4
+PyPDF2
+python-docx
+pandas
+requests
+scikit-learn
+rake-nltk
+language-tool-python
+nltk
+sumy
 
 
