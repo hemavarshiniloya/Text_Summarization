@@ -9,3 +9,4 @@ txtai
 pandas
 googletrans
 deep-translator
+matplotlib
