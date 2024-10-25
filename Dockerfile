@@ -1,42 +1,39 @@
-# Use Python 3.9 slim image as base
 FROM python:3.9-slim
 
-# Set working directory
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     build-essential \
-    python3-dev \
-    default-libmysqlclient-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file
+# Copy only requirements first for better caching
 COPY requirements.txt .
 
-# Install Python packages
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download NLTK data
-RUN python -c "import nltk; \
-    nltk.download('punkt'); \
-    nltk.download('averaged_perceptron_tagger'); \
-    nltk.download('brown'); \
-    nltk.download('wordnet'); \
-    nltk.download('omw-1.4')"
+# Create a script to download NLTK and TextBlob data
+RUN echo '\
+import nltk\n\
+import textblob\n\
+nltk.download("punkt")\n\
+nltk.download("averaged_perceptron_tagger")\n\
+nltk.download("brown")\n\
+nltk.download("wordnet")\n\
+nltk.download("omw-1.4")\n\
+import subprocess\n\
+subprocess.run(["python", "-m", "textblob.download_corpora"])\
+' > download_nltk_data.py
 
-# Download TextBlob corpora
-RUN python -m textblob.download_corpora
+# Run the script to download data
+RUN python download_nltk_data.py
 
-# Copy the application code
+# Copy the rest of the application
 COPY . .
 
-# Expose port for Streamlit
 EXPOSE 8501
 
-# Set environment variables
-ENV LC_ALL=C.UTF-8
-ENV LANG=C.UTF-8
-
-# Command to run the application
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
