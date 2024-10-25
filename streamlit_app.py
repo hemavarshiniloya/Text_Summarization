@@ -117,13 +117,13 @@ st.set_page_config(layout="wide")
 # Initialize text summarizer
 def text_summary(text, maxlength=None):
     summary = Summary()
- result = summary(text)
+    result = summary(text)
     return result
 
 # Function to preprocess text
 def preprocess_text(text):
     # Remove extra whitespace and special characters
-    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'\ s+', ' ', text)
     text = re.sub(r'[^A-Za-z0-9\s\.]+', '', text)
     return text
 
