@@ -8,6 +8,7 @@ from docx import Document
 import pandas as pd
 import xml.etree.ElementTree as ET
 import re
+import matplotlib.pyplot as plt
 
 # List of languages with their ISO 639-1 codes
 languages = {
@@ -182,8 +183,11 @@ def scrape_website(url):
 
 # Main function
 def main():
-    st.title("Text Summarization and Translation App")
+    st.title("Text Summarization and Translation App 📝🌍")
     st.write("This app can summarize text and translate it to various languages.")
+    
+    # Add an image or diagram for better understanding
+    st.image("path_to_image_or_diagram.png", caption="Text Summarization and Translation Process", use_column_width=True)
 
     # Language selection in sidebar
     selected_language = st.sidebar.selectbox("Select a language to translate to", list(languages.keys()))
@@ -196,7 +200,7 @@ def main():
         text_input = st.text_area("Enter text to summarize and translate")
 
         # Summarize and translate button
-        if st.button("Summarize and Translate"):
+        if st.button("Summarize and Translate 📜➡️🌐"):
             if text_input:
                 # Preprocess text
                 text = preprocess_text(text_input)
@@ -217,14 +221,14 @@ def main():
 
                 # Save results
                 st.write("Save Results:")
-                save_button = st.button("Save as Text File")
+                save_button = st.button("Save as Text File 💾")
                 if save_button:
                     with open("results.txt", "w") as f:
                         f.write("Original Text:\n" + text_input + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
-                    st.write("Results saved to results.txt")
+                    st.success("Results saved to results.txt")
 
                 # Clear input
-                clear_button = st.button("Clear Input")
+                clear_button = st.button("Clear Input 🧹")
                 if clear_button:
                     st.session_state.clear()
 
@@ -233,7 +237,7 @@ def main():
         file_uploaded = st.file_uploader("Upload a file (PDF, Word, XML, CSV)", type=["pdf", "docx", "xml", "csv"])
 
         # Summarize and translate button
-        if st.button("Summarize and Translate"):
+        if st.button("Summarize and Translate 📜➡️🌐"):
             if file_uploaded:
                 if file_uploaded.name.endswith('.pdf'):
                     text = read_pdf(file_uploaded)
@@ -263,14 +267,14 @@ def main():
 
                 # Save results
                 st.write("Save Results:")
-                save_button = st.button("Save as Text File")
+                save_button = st.button("Save as Text File 💾")
                 if save_button:
                     with open("results.txt", "w") as f:
                         f.write("Original Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n " + translated_summary)
-                    st.write("Results saved to results.txt")
+                    st.success("Results saved to results.txt")
 
                 # Clear input
-                clear_button = st.button("Clear Input")
+                clear_button = st.button("Clear Input 🧹")
                 if clear_button:
                     st.session_state.clear()
 
@@ -279,7 +283,7 @@ def main():
         url_input = st.text_input("Enter a URL to summarize")
 
         # Summarize button
-        if st.button("Summarize URL"):
+        if st.button("Summarize URL 📜"):
             if url_input:
                 # Fetch and summarize content from the URL
                 url_text = scrape_website(url_input)
@@ -303,14 +307,14 @@ def main():
 
                     # Save results
                     st.write("Save Results:")
-                    save_button = st.button("Save as Text File")
+                    save_button = st.button("Save as Text File 💾")
                     if save_button:
                         with open("results.txt", "w") as f:
                             f.write("Original Text from URL:\n" + url_text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
-                        st.write("Results saved to results.txt")
+                        st.success("Results saved to results.txt")
 
                     # Clear input
-                    clear_button = st.button("Clear Input")
+                    clear_button = st.button("Clear Input 🧹")
                     if clear_button:
                         st.session_state.clear()
 
