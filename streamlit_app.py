@@ -354,20 +354,29 @@ def main():
 
     # Clipboard Summarization Section
     # Clipboard Summarization Section
-    elif choice == "Summarize Text from Clipboard":
-        # Use a unique key for the text_area to avoid duplicate IDs
+    def main():
+    # Line 360: Initialize max_sentences
+    max_sentences = 5  # Default value, can be changed by user input
+    
+    # Line 361: Add user input for max_sentences
+    max_sentences_input = st.number_input("Select max sentences for summary:", min_value=1, value=max_sentences)
+
+    # Your other code
+    # Line 363: Assuming you have a choice mechanism
+    if choice == "Summarize Text from Clipboard":
         st.session_state.clipboard_text = st.text_area("Paste your text here:", st.session_state.clipboard_text, key="clipboard_text_area")
 
-    if st.button("Summarize Clipboard Text"):
-        if validate_input(st.session_state.clipboard_text):
-            preprocessed_text = preprocess_text(st.session_state.clipboard_text)
-            summary = text_summary(preprocessed_text, max_sentences)
-            st.write("### Summary:")
-            st.write(summary)
-            save_summary(summary)
-            download_file(summary, "summary.txt")
-        else:
-            st.error("Please paste some text to summarize.")
+        if st.button("Summarize Clipboard Text"):
+            if validate_input(st.session_state.clipboard_text):
+                preprocessed_text = preprocess_text(st.session_state.clipboard_text)
+                summary = text_summary(preprocessed_text, max_sentences_input)  # Use the input variable
+                st.write("### Summary:")
+                st.write(summary)
+                save_summary(summary)
+                download_file(summary, "summary.txt")
+            else:
+                st.error("Please paste some text to summarize.")
+
 
         if st.button("Summarize"):
             if validate_input(st.session_state.clipboard_text):
