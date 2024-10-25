@@ -8,6 +8,8 @@ from docx import Document
 import pandas as pd
 import xml.etree.ElementTree as ET
 import re
+import time
+import os
 
 # Function to download NLTK data if not already downloaded
 def download_nltk_data():
@@ -16,9 +18,20 @@ def download_nltk_data():
         nltk.data.find("tokenizers/punkt")
     except LookupError:
         nltk.download("punkt")
+        time.sleep(5)  # Allow time for download to complete
 
-# Ensure necessary NLTK corpora are downloaded
+# Function to download TextBlob corpora
+def download_textblob_data():
+    """Download necessary TextBlob data."""
+    try:
+        from textblob import download_corpora
+        download_corpora.download_all()
+    except Exception as e:
+        st.error(f"An error occurred while downloading TextBlob data: {str(e)}")
+
+# Ensure necessary NLTK corpora and TextBlob data are downloaded
 download_nltk_data()
+download_textblob_data()
 
 # Set page configuration
 st.set_page_config(layout="wide")
