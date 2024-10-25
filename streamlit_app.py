@@ -9,8 +9,16 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import re
 
+# Function to download NLTK data if not already downloaded
+def download_nltk_data():
+    """Download necessary NLTK data."""
+    try:
+        nltk.data.find("tokenizers/punkt")
+    except LookupError:
+        nltk.download("punkt")
+
 # Ensure necessary NLTK corpora are downloaded
-nltk.download("punkt")
+download_nltk_data()
 
 # Set page configuration
 st.set_page_config(layout="wide")
