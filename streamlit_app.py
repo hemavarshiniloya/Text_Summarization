@@ -3,6 +3,8 @@ import PyPDF2
 import docx
 import re
 import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 from collections import Counter
 
 class TextSummarizer:
@@ -99,6 +101,19 @@ def extract_text_from_excel(excel_file):
         st.error(f"Error extracting text from Excel: {str(e)}")
         return None
 
+def extract_text_from_url(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an error for bad responses
+        soup = BeautifulSoup(response.text, 'html.parser')
+        # Extract text from paragraphs
+        paragraphs = soup.find_all('p')
+        text = "\n".join(paragraph.get_text () for paragraph in paragraphs)
+        return text
+    except Exception as e:
+        st.error(f"Error extracting text from URL: {str(e)}")
+        return None
+
 def main():
     st.set_page_config(
         page_title="Multi-Document Summarizer",
@@ -107,12 +122,14 @@ def main():
     )
 
     st.title("📚 Multi-Document Summarizer")
-    st.write("Upload multiple documents (PDF, DOCX, TXT, XLSX) to generate summaries.")
+    st.write("Upload multiple documents (PDF, DOCX, TXT, XLSX), input text directly, or enter a URL to generate summaries.")
 
     summarizer = TextSummarizer()
 
     uploaded_files = st.file_uploader("Upload documents (PDF, DOCX, TXT, XLSX)", type=['pdf', 'docx', 'txt', 'xlsx'], accept_multiple_files=True)
-    
+    input_text = st.text_area("Input text directly:")
+    input_url = st.text_input("Enter a URL:")
+
     num_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3)
 
     if uploaded_files:
@@ -136,6 +153,20 @@ def main():
                 st.write(f"**Summary of {uploaded_file.name}**: {summary}")
             else:
                 st.write(f"**Error processing {uploaded_file.name}**")
+
+    if input_text:
+        st.subheader("Processing input text ...")
+        summary = summarizer.summarize(input_text, num_sentences)
+        st.write(f"**Summary of input text**: {summary}")
+
+    if input_url:
+        st.subheader("Processing URL ...")
+        text = extract_text_from_url(input_url)
+        if text:
+            summary = summarizer.summarize(text, num_sentences)
+            st.write(f"**Summary of {input_url}**: {summary}")
+        else:
+            st.write(f"**Error processing {input_url}**")
 
 if __name__ == "__main__":
     main()
