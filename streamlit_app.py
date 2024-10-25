@@ -121,8 +121,8 @@ def text_summary(text):
 
 # Function to preprocess text
 def preprocess_text(text):
-    text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'[^A-Za-z0- 9\s\.]+', '', text)
+    text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
+    text = re.sub(r'[^A-Za-z0-9\s\.]+', '', text )  # Remove unwanted characters
     return text
 
 # Function to translate text
@@ -271,8 +271,8 @@ def main():
 
                 # Clear input
                 clear_button = st.button("Clear Input")
-                if clear_button :
-                    st.session_state.clear()
+                if clear_button:
+ st.session_state.clear()
 
     elif input_type == "URL":
         # URL input
