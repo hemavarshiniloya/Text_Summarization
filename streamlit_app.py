@@ -153,7 +153,7 @@ def main():
     st.markdown(
         """
         <div style="text-align: center">
-            <p>Made with ❤️ by Your Name</p>
+            <p>Made with ❤️ by Your Hema Varshini Loya</p>
         </div>
         """,
         unsafe_allow_html=True
