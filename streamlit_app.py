@@ -106,9 +106,8 @@ def extract_text_from_url(url):
         response = requests.get(url)
         response.raise_for_status()  # Raise an error for bad responses
         soup = BeautifulSoup(response.text, 'html.parser')
-        # Extract text from paragraphs
         paragraphs = soup.find_all('p')
-        text = "\n".join(paragraph.get_text () for paragraph in paragraphs)
+        text = "\n".join(paragraph.get_text() for paragraph in paragraphs)
         return text
     except Exception as e:
         st.error(f"Error extracting text from URL: {str(e)}")
@@ -116,12 +115,12 @@ def extract_text_from_url(url):
 
 def main():
     st.set_page_config(
-        page_title="Multi-Document Summarizer",
+        page_title="Summizares",
         page_icon="📚",
         layout="wide"
     )
 
-    st.title("📚 Multi-Document Summarizer")
+    st.title("📚 Summizares")
     st.write("Upload multiple documents (PDF, DOCX, TXT, XLSX), input text directly, or enter a URL to generate summaries.")
 
     summarizer = TextSummarizer()
