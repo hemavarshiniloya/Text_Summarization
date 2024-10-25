@@ -8,6 +8,7 @@ from docx import Document
 import pandas as pd
 import xml.etree.ElementTree as ET
 import re
+import os
 
 # List of languages with their ISO 639-1 codes
 languages = {
@@ -122,7 +123,7 @@ def text_summary(text):
 # Function to preprocess text
 def preprocess_text(text):
     text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
-    text = re.sub(r'[^A-Za-z0-9\s\.]+', '', text)  # Remove unwanted characters
+    text = re.sub(r'[^A-Za -z0-9\s\.]+', '', text)  # Remove unwanted characters
     return text
 
 # Function to translate text
@@ -180,10 +181,31 @@ def scrape_website(url):
         st.error(f"Error fetching URL: {str(e)}")
         return ""
 
+# Function to display the history of translations and summaries
+def display_history():
+    st.subheader("📜 History of Translations and Summaries")
+    history_text = (
+        "The history of translations and summaries is rich and spans many cultures and eras:\n\n"
+        "**Ancient Times**:\n"
+        "- Sumerians and Egyptians practiced early translations, notably with the Rosetta Stone.\n\n"
+        "**Classical Era**:\n"
+        "- The Septuagint translated the Hebrew Bible into Greek. Romans translated Greek works into Latin.\n\n"
+        "**Medieval Period**:\n"
+        "- Islamic scholars preserved and translated ancient texts. The 12th-century Renaissance saw a surge in translations.\n\n"
+        "**Modern Era**:\n"
+        "- The rise of nationalism in the 19th century led to interest in translating folk literature. Machine translation began in the 1950s.\n\n"
+        "**21st Century**:\n"
+        "- Advances in AI and machine learning have significantly improved translation and summarization technologies."
+    )
+    st.write(history_text)
+
 # Main function
 def main():
     st.title("📝 Text Summarization and Translation App")
     st.write("This app can summarize text and translate it to various languages.")
+
+    # Add the history section
+    display_history()
 
     # Language selection in sidebar
     selected_language = st.sidebar.selectbox("🌐 Select a language to translate to", list(languages.keys()), index=0)
@@ -197,8 +219,8 @@ def main():
 
         # Summarize and translate button
         if st.button("✨ Summarize and Translate"):
-            if text_input:
-                with st.spinner("Processing..."):
+            with st.spinner("Processing..."):
+                if text_input:
                     # Preprocess text
                     text = preprocess_text(text_input)
 
@@ -231,59 +253,46 @@ def main():
 
     elif input_type == "File":
         # File uploader
-        file_uploaded = st.file_uploader("📥 Upload a file (PDF, Word, XML, CSV)", type=["pdf", "docx", "xml", "csv"], accept_multiple_files=False)
+        file_uploaded = st.file_uploader("📥 Upload a file (PDF, Word, XML, CSV)", type=["pdf", "docx", "xml", "csv"])
 
-        # Summarize and translate button
-        if st.button("✨ Summarize and Translate"):
-            if file_uploaded:
+        if file_uploaded:
+            # Process the uploaded file based on its type
+            if file_uploaded.name.endswith('.pdf'):
+                text = read_pdf(file_uploaded)
+            elif file_uploaded.name.endswith('.docx'):
+                text = read_word(file_uploaded)
+            elif file_uploaded.name.endswith('.xml'):
+                text = read_xml(file_uploaded)
+            elif file_uploaded.name.endswith('.csv'):
+                text = read_csv(file_uploaded)
+
+            # Summarize and translate button
+            if st.button("✨ Summarize and Translate"):
                 with st.spinner("Processing..."):
-                    if file_uploaded.name.endswith('.pdf'):
-                        text = read_pdf(file_uploaded)
-                    elif file_uploaded.name.endswith('.docx'):
-                        text = read_word(file_uploaded)
-                    elif file_uploaded.name.endswith('.xml'):
-                        text = read_xml(file_uploaded)
-                    elif file_uploaded.name.endswith('.csv'):
-                        text = read_csv(file_uploaded)
+                    if text:
+                        # Preprocess text
+                        text = preprocess_text(text)
 
-                    # Preprocess text
-                    text = preprocess_text(text)
+                        # Summarize text
+                        summary = text_summary(text)
 
-                    # Summarize text
-                    summary = text_summary(text)
+                        # Translate summary
+                        translated_summary = translate_text(summary, languages[selected_language])
 
-                    # Translate summary
-                    translated_summary = translate_text(summary, languages[selected_language])
-
-                    # Display results
-                    st.write("📝 Original Text:")
-                    st.write(text)
-                    st.write("📄 Summary:")
-                    st.write(summary)
-                    st.write("🌍 Translated Summary:")
-                    st.write(translated_summary)
-
-                    # Save results
-                    st.write("💾 Save Results:")
-                    save_button = st.button("Save as Text File")
-                    if save_button:
-                        with open("results.txt", "w") as f:
-                            f.write("Original Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
-                        st.write("Results saved to results.txt")
-
-                    # Clear input
-                    clear_button = st.button("🧹 Clear Input")
-                    if clear_button:
-                        st.session_state.clear()
+                        # Display results
+                        st.write("📄 Summary:")
+                        st.write(summary)
+                        st.write("🌍 Translated Summary:")
+                        st.write(translated_summary)
 
     elif input_type == "URL":
         # URL input
-        url_input = st.text_input("🌐 Enter URL to summarize")
+        url_input = st.text_input("🔗 Enter URL")
 
-        # Summarize and translate button
-        if st.button("✨ Summarize and Translate"):
-            if url_input:
-                with st.spinner("Processing..."):
+        # Scrape and translate button
+        if st.button("✨ Scrape and Translate"):
+            with st.spinner("Processing..."):
+                if url_input:
                     text = scrape_website(url_input)
 
                     # Preprocess text
@@ -296,25 +305,10 @@ def main():
                     translated_summary = translate_text(summary, languages[selected_language])
 
                     # Display results
-                    st.write("📝 Scraped Text:")
-                    st.write(text)
                     st.write("📄 Summary:")
                     st.write(summary)
                     st.write("🌍 Translated Summary:")
                     st.write(translated_summary)
-
-                    # Save results
-                    st.write("💾 Save Results:")
-                    save_button = st.button("Save as Text File")
-                    if save_button:
-                        with open("results.txt", "w") as f:
-                            f.write("Scraped Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
-                        st.write("Results saved to results.txt")
-
-                    # Clear input
-                    clear_button = st.button("🧹 Clear Input")
-                    if clear_button:
-                        st.session_state.clear()
 
 if __name__ == "__main__":
     main()
