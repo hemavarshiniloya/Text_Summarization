@@ -266,13 +266,13 @@ def main():
                 save_button = st.button("Save as Text File")
                 if save_button:
                     with open("results.txt", "w") as f:
-                        f.write("Original Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n" + translated_summary)
+                        f.write("Original Text:\n" + text + "\n\nSummary:\n" + summary + "\n\nTranslated Summary:\n " + translated_summary)
                     st.write("Results saved to results.txt")
 
                 # Clear input
                 clear_button = st.button("Clear Input")
                 if clear_button:
- st.session_state.clear()
+                    st.session_state.clear()
 
     elif input_type == "URL":
         # URL input
