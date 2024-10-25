@@ -354,9 +354,9 @@ def main():
 
     # Clipboard Summarization Section
     # Clipboard Summarization Section
-elif choice == "Summarize Text from Clipboard":
-    # Use a unique key for the text_area to avoid duplicate IDs
-    st.session_state.clipboard_text = st.text_area("Paste your text here:", st.session_state.clipboard_text, key="clipboard_text_area")
+    elif choice == "Summarize Text from Clipboard":
+        # Use a unique key for the text_area to avoid duplicate IDs
+        st.session_state.clipboard_text = st.text_area("Paste your text here:", st.session_state.clipboard_text, key="clipboard_text_area")
 
     if st.button("Summarize Clipboard Text"):
         if validate_input(st.session_state.clipboard_text):
