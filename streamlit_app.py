@@ -122,7 +122,7 @@ def text_summary(text):
 # Function to preprocess text
 def preprocess_text(text):
     text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'[^A-Za-z0-9\s\.]+', '', text)
+    text = re.sub(r'[^A-Za-z0- 9\s\.]+', '', text)
     return text
 
 # Function to translate text
@@ -185,6 +185,9 @@ def main():
     st.title("Text Summarization and Translation App")
     st.write("This app can summarize text and translate it to various languages.")
 
+    # Language selection in sidebar
+    selected_language = st.sidebar.selectbox("Select a language to translate to", list(languages.keys()))
+
     # Input selection
     input_type = st.selectbox("Select input type", ["Text", "File", "URL"])
 
@@ -200,9 +203,6 @@ def main():
 
                 # Summarize text
                 summary = text_summary(text)
-
-                # Language selection
-                selected_language = st.selectbox("Select a language to translate to", list(languages.keys()))
 
                 # Translate summary
                 translated_summary = translate_text(summary, languages[selected_language])
@@ -250,9 +250,6 @@ def main():
                 # Summarize text
                 summary = text_summary(text)
 
-                # Language selection
-                selected_language = st.selectbox("Select a language to translate to", list(languages.keys()))
-
                 # Translate summary
                 translated_summary = translate_text(summary, languages[selected_language])
 
@@ -274,7 +271,7 @@ def main():
 
                 # Clear input
                 clear_button = st.button("Clear Input")
-                if clear_button:
+                if clear_button :
                     st.session_state.clear()
 
     elif input_type == "URL":
@@ -292,9 +289,6 @@ def main():
 
                     # Summarize text
                     summary = text_summary(url_text)
-
-                    # Language selection
-                    selected_language = st.selectbox("Select a language to translate to", list(languages.keys()))
 
                     # Translate summary
                     translated_summary = translate_text(summary, languages[selected_language])
