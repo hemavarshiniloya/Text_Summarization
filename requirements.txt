@@ -1,10 +1,10 @@
 streamlit
-txtai
-transformers
 requests
 beautifulsoup4
 PyPDF2
 python-docx
 pandas
 googletrans==4.0.0-rc1
-huggingface_hub
+txtai==5.0.0
+transformers==4.30.0
+huggingface_hub==0.14.1
