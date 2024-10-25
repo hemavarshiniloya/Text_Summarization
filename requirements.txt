@@ -1,8 +1,10 @@
 streamlit
-nltk
-textblob
-requests
-beautifulsoup4
-PyPDF2
-python-docx
-fpdf
+nltk==3.8.1
+numpy==1.24.3
+networkx==3.1
+scikit-learn==1.2.2
+requests==2.31.0
+beautifulsoup4==4.12.2
+PyPDF2==3.0.1
+python-docx==0.8.11
+scipy==1.10.1
