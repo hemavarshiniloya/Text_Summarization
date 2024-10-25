@@ -12,100 +12,13 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import os
 import re
-from googletrans import Translator
-
-# List of languages with their ISO 639-1 codes
-languages = {
-    "English": "en",
-    "Afrikaans": "af",
-    "Albanian": "sq",
-    "Arabic": "ar",
-    "Armenian": "hy",
-    "Azerbaijani": "az",
-    "Basque": "eu",
-    "Belarusian": "be",
-    "Bengali": "bn",
-    "Bosnian": "bs",
-    "Bulgarian": "bg",
-    "Catalan": "ca",
-    "Chinese (Simplified)": "zh-cn",
-    "Chinese (Traditional)": "zh-tw",
-    "Croatian": "hr",
-    "Czech": "cs",
-    "Danish": "da",
-    "Dutch": "nl",
-    "English": "en",
-    "Estonian": "et",
-    "Finnish": "fi",
-    "French": "fr",
-    "Galician": "gl",
-    "Georgian": "ka",
-    "German": "de",
-    "Greek": "el",
-    "Gujarati": "gu",
-    "Haitian Creole": "ht",
-    "Hebrew": "iw",
-    "Hindi": "hi",
-    "Hungarian": "hu",
-    "Icelandic": "is",
-    "Igbo": "ig",
-    "Indonesian": "id",
-    "Irish": "ga",
-    "Italian": "it",
-    "Japanese": "ja",
-    "Javanese": "jw",
-    "Kazakh": "kk",
-    "Korean": "ko",
-    "Kurdish": "ku",
-    "Kyrgyz": "ky",
-    "Lao": "lo",
-    "Latin": "la",
-    "Latvian": "lv",
-    "Lithuanian": "lt",
-    "Luxembourgish": "lb",
-    "Macedonian": "mk",
-    "Malagasy": "mg",
-    "Malay": "ms",
-    "Malayalam": "ml",
-    "Maltese": "mt",
-    "Maori": "mi",
-    "Marathi": "mr",
-    "Mongolian": "mn",
-    "Nepali": "ne",
-    "Norwegian": "no",
-    "Pashto": "ps",
-    "Persian": "fa",
-    "Polish": "pl",
-    "Portuguese": "pt",
-    "Punjabi": "pa",
-    "Romanian": "ro",
-    "Russian": "ru",
-    "Serbian": "sr",
-    "Slovak": "sk",
-    "Slovenian": "sl",
-    "Spanish": "es",
-    "Swahili": "sw",
-    "Swedish": "sv",
-    "Tagalog": "tl",
-    "Thai": "th",
-    "Turkish": "tr",
-    "Ukrainian": "uk",
-    "Urdu": "ur",
-    "Vietnamese": "vi",
-    "Welsh": "cy",
-    "Xhosa": "xh",
-    "Yiddish": "yi",
-    "Yoruba": "yo",
-    "Zulu": "zu",
-}
 
 # Ensure NLTK data is downloaded
 def ensure_nltk_data():
-    """Ensure NLTK tokenizer resources are downloaded."""
     try:
         nltk.data.find("tokenizers/punkt")
     except LookupError:
-        nltk.download("punkt", quiet=True)  # Download 'punkt' quietly
+        nltk.download("punkt")
 
 # Set page configuration
 st.set_page_config(layout="wide")
@@ -118,8 +31,8 @@ def text_summary(text, max_sentences):
     # Ensure NLTK data is available
     ensure_nltk_data()
 
-    # Use the Tokenizer after ensuring NLTK data is present
-    tokenizer = Tokenizer("english")  # Use the default tokenizer
+    # Initialize the Tokenizer with the required language
+    tokenizer = Tokenizer("english")  # Specify language here
     parser = PlaintextParser.from_string(text, tokenizer)
     summarizer = LsaSummarizer()
     summary = summarizer(parser.document, max_sentences)
@@ -327,23 +240,21 @@ def main():
                     except Exception as e:
                         st.error(f"An error occurred during summarization: {str(e)}")
                 else:
-                    st.error("No text found in the uploaded documents.")
+                    st.error("No text found in the uploaded files.")
             else:
-                st.error("Please upload at least one document.")
+                st.error("Please upload at least one file.")
 
         if st.button("Clear Input"):
             clear_input("Summarize Document")
 
     # Clipboard Summarization Section
     elif choice == "Summarize Text from Clipboard":
-        st.session_state.clipboard_text = st.text_area("Paste text from clipboard here:", value=st.session_state.clipboard_text, height=300)
-        max_sentences = st.number_input("Maximum number of sentences for summary", min_value=1, value=2, step=1)
+        st.session_state.clipboard_text = st.text_area("Paste your clipboard text here:", value=st.session_state.clipboard_text, height=300)
 
         if st.button("Summarize"):
             if validate_input(st.session_state.clipboard_text):
-                preprocessed_text = preprocess_text(st.session_state.clipboard_text)
                 try:
-                    summary = text_summary(preprocessed_text, max_sentences)
+                    summary = text_summary(st.session_state.clipboard_text, 2)
                     st.write("### Summary")
                     st.write(summary)
 
@@ -360,16 +271,15 @@ def main():
         if st.button("Clear Input"):
             clear_input("Summarize Text from Clipboard")
 
-    # Display Summary History
-    if st.sidebar.checkbox("Show Summary History"):
-        history = load_summary_history()
-        if history:
+    # Summary History Section
+    if st.sidebar.button("View Summary History"):
+        summary_history = load_summary_history()
+        if summary_history:
             st.sidebar.write("### Summary History")
-            st.sidebar.text_area("Previous Summaries", value=history, height=300)
+            st.sidebar.write(summary_history)
         else:
-            st.sidebar.write("No summaries found in history.")
+            st.sidebar.write("No summary history available.")
 
-    # Clear Summary History
     if st.sidebar.button("Clear Summary History"):
         clear_summary_history()
         st.sidebar.success("Summary history cleared.")
