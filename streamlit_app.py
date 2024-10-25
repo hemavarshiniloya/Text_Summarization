@@ -11,16 +11,19 @@ class TextSummarizer:
         pass
         
     def preprocess_text(self, text):
+        # Convert to lowercase and remove special characters
         text = text.lower()
         text = re.sub(r'\s+', ' ', text)
         text = re.sub(r'[^\w\s.]', '', text)
         return text
     
     def get_sentences(self, text):
+        # Simple sentence tokenization
         sentences = re.split(r'[.!?]+', text)
         return [sent.strip() for sent in sentences if sent.strip()]
     
     def get_word_frequency(self, text):
+        # Remove common words and get word frequency
         common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
         words = text.split()
         word_freq = Counter()
@@ -41,35 +44,34 @@ class TextSummarizer:
     
     def summarize(self, text, num_sentences=3):
         try:
+            # Preprocess text
             cleaned_text = self.preprocess_text(text)
+            
+            # Get sentences
             sentences = self.get_sentences(cleaned_text)
             
             if not sentences:
                 return "Could not generate summary. Text too short or invalid."
             
+            # Limit num_sentences to available sentences
             num_sentences = min(num_sentences, len(sentences))
+            
+            # Get word frequency
             word_freq = self.get_word_frequency(cleaned_text)
+            
+            # Score sentences
             sentence_scores = self.score_sentences(sentences, word_freq)
+            
+            # Get top sentences
             top_sentences = sorted(sentence_scores.items(), key=lambda x: x[1], reverse=True)[:num_sentences]
+            
+            # Reconstruct summary
             summary = '. '.join(sent for sent, score in top_sentences)
+            
             return summary.capitalize() + '.'
             
         except Exception as e:
             return f"An error occurred while summarizing: {str(e)}"
-
-def extract_text_from_url(url):
-    try:
-        headers = {
-            'User -Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        paragraphs = soup.find_all('p')
-        text = ' '.join([p.get_text() for p in paragraphs])
-        return text
-    except Exception as e:
-        st.error(f"Error extracting text from URL: {str(e)}")
-        return None
 
 def extract_text_from_pdf(pdf_file):
     try:
@@ -93,86 +95,51 @@ def extract_text_from_docx(docx_file):
         st.error(f"Error extracting text from DOCX: {str(e)}")
         return None
 
+def extract_text_from_txt(txt_file):
+    try:
+        text = txt_file.read().decode("utf-8")
+        return text
+    except Exception as e:
+        st.error(f"Error extracting text from TXT: {str(e)}")
+        return None
+
 def main():
     st.set_page_config(
-        page_title="Text Summarizer",
+        page_title="Multi-Document Summarizer",
         page_icon="📚",
         layout="wide"
     )
 
-    st.title("📚 Text Summarizer")
-    st.write("Upload text, URL, or documents to generate a summary.")
+    st.title("📚 Multi-Document Summarizer")
+    st.write("Upload multiple documents (PDF, DOCX, TXT) to generate summaries.")
 
     # Initialize summarizer
     summarizer = TextSummarizer()
 
-    # Create tabs
-    tab1, tab2, tab3 = st.tabs(["📝 Text", "🌐 URL", "📄 Document"])
+    # Create a file uploader for multiple files
+    uploaded_files = st.file_uploader("Upload documents (PDF, DOCX, TXT)", type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
+    
+    num_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3)
 
-    with tab1:
-        st.header("📝 Text Input")
-        text_input = st.text_area("Enter your text here:", height=200)
-        num_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3)
-        
-        if st.button("Summarize Text", key="text_button"):
-            if text_input:
-                with st.spinner("Generating summary... "):
-                    summary = summarizer.summarize(text_input, num_sentences)
-                    st.success("Summary generated!")
-                    st.write(summary)
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            st.subheader(f"Processing {uploaded_file.name}...")
+            text = ""
+            
+            # Extract text based on file type
+            if uploaded_file.type == "application/pdf":
+                text = extract_text_from_pdf(upload _file)
+            elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                text = extract_text_from_docx(upload_file)
+            elif uploaded_file.type == "text/plain":
+                text = extract_text_from_txt(upload_file)
+            
+            if text:
+                summary = summarizer.summarize(text, num_sentences)
+                st.write(f"Summary of {uploaded_file.name}:")
+                st.write(summary)
             else:
-                st.warning("Please enter some text to summarize.")
-
-    with tab2:
-        st.header("🌐 URL Input")
-        url_input = st.text_input("Enter URL:")
-        url_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3, key="url_slider")
-        
-        if st.button("Summarize URL", key="url_button"):
-            if url_input:
-                with st.spinner("Fetching content and generating summary..."):
-                    text = extract_text_from_url(url_input)
-                    if text:
-                        summary = summarizer.summarize(text, url_sentences)
-                        st.success("Summary generated!")
-                        st.write(summary)
-                    else:
-                        st.error("Could not extract text from the URL.")
-            else:
-                st.warning("Please enter a URL.")
-
-    with tab3:
-        st.header("📄 Document Upload")
-        uploaded_file = st.file_uploader("Upload a document", type=['pdf', 'docx'])
-        doc_sentences = st.slider("Number of sentences in summary:", min_value=1, max_value=10, value=3, key="doc_slider")
-        
-        if uploaded_file and st.button("Summarize Document", key="doc_button"):
-            with st.spinner("Processing document and generating summary..."):
-                file_type = uploaded_file.type
-                if file_type == "application/pdf":
-                    text = extract_text_from_pdf(uploaded_file)
-                elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                    text = extract_text_from_docx(uploaded_file)
-                else:
-                    text = None
-                    st.error("Unsupported file type")
-
-                if text:
-                    summary = summarizer.summarize(text, doc_sentences)
-                    st.success("Summary generated!")
-                    st.write(summary)
-
-    # Add footer
-    st.markdown("---")
-    st.markdown(
-        """
-        <div style="text-align: center">
-            <p>Text Summarization App</p>
-            <i class="fa fa-copyright" aria-hidden="true"></i> 2023
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+                st.write(f"Failed to extract text from {uploaded_file.name}. Skipping.")
 
 if __name__ == "__main__":
     main()
