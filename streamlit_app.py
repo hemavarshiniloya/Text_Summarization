@@ -5,117 +5,182 @@ import requests
 from bs4 import BeautifulSoup
 import PyPDF2
 import docx
+import os
 
-# Function to download necessary NLTK data if not already present
+# Download NLTK data at app startup
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
+try:
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet')
+try:
+    nltk.data.find('corpora/omw-1.4')
+except LookupError:
+    nltk.download('omw-1.4')
+
+# Cache the NLTK downloads
+@st.cache_resource
 def download_nltk_data():
-    """Download required NLTK data for TextBlob."""
-    nltk_packages = ['wordnet', 'omw-1.4', 'punkt']
-    for package in nltk_packages:
-        try:
-            nltk.data.find(f'corpora/{package}')
-        except LookupError:
-            nltk.download(package)
+    """Download and cache NLTK data."""
+    try:
+        nltk.data.find('tokenizers/punkt')
+        nltk.data.find('corpora/wordnet')
+        nltk.data.find('corpora/omw-1.4')
+    except LookupError:
+        nltk.download('punkt')
+        nltk.download('wordnet')
+        nltk.download('omw-1.4')
 
 # Function to extract text from a given URL
+@st.cache_data
 def extract_text_from_url(url):
     """Extract text from a given URL."""
     try:
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
-        return ' '.join(p.get_text() for p in soup.find_all('p'))
+        paragraphs = soup.find_all('p')
+        return ' '.join(p.get_text() for p in paragraphs)
     except Exception as e:
-        st.error(f"Error fetching URL: {e}")
+        st.error(f"Error fetching URL: {str(e)}")
         return ""
 
-# Function to extract text from a PDF file
+# Function to extract text from PDF
 def extract_text_from_pdf(file):
     """Extract text from a PDF file."""
     try:
         reader = PyPDF2.PdfReader(file)
-        text = ''
+        text = ""
         for page in reader.pages:
-            text += page.extract_text() or ''
+            text += page.extract_text() + "\n"
         return text
     except Exception as e:
-        st.error(f"Error reading PDF file: {e}")
+        st.error(f"Error reading PDF: {str(e)}")
         return ""
 
-# Function to extract text from a Word document
+# Function to extract text from Word document
 def extract_text_from_docx(file):
     """Extract text from a Word document."""
     try:
         doc = docx.Document(file)
-        text = ''
+        text = ""
         for paragraph in doc.paragraphs:
-            text += paragraph.text + '\n'
+            text += paragraph.text + "\n"
         return text
     except Exception as e:
-        st.error(f"Error reading Word document: {e}")
+        st.error(f"Error reading Word document: {str(e)}")
         return ""
 
-# Function to summarize the given text using TextBlob
+# Function to summarize text
+@st.cache_data
 def summarize_text(text, num_sentences=3):
-    """Summarize the given text using TextBlob."""
-    download_nltk_data()  # Ensure required NLTK data is downloaded
-    blob = TextBlob(text)
-    sentences = blob.sentences
-    sorted_sentences = sorted(sentences, key=lambda s: len(s.noun_phrases), reverse=True)
-    summary = ' '.join(str(sentence) for sentence in sorted_sentences[:num_sentences])
-    return summary
+    """Summarize the given text."""
+    try:
+        # Ensure NLTK data is downloaded
+        download_nltk_data()
+        
+        # Create TextBlob object
+        blob = TextBlob(text)
+        
+        # Get sentences and sort by importance (using length of noun phrases as a simple metric)
+        sentences = blob.sentences
+        sentence_scores = [(sentence, len(sentence.noun_phrases)) for sentence in sentences]
+        sorted_sentences = sorted(sentence_scores, key=lambda x: x[1], reverse=True)
+        
+        # Select top n sentences
+        summary_sentences = [str(sentence[0]) for sentence in sorted_sentences[:num_sentences]]
+        summary = ' '.join(summary_sentences)
+        
+        return summary
+    except Exception as e:
+        st.error(f"Error in summarization: {str(e)}")
+        return "Error occurred during summarization."
 
-# Main function for the Streamlit app
 def main():
-    st.title("Text Summarization App")
+    # Set page configuration
+    st.set_page_config(
+        page_title="Text Summarization App",
+        page_icon="📝",
+        layout="wide"
+    )
 
-    choice = st.sidebar.radio("Choose an option", ["Summarize Text", "Summarize URL", "Summarize Document"])
+    # Download NLTK data at startup
+    download_nltk_data()
 
-    if choice == "Summarize Text":
-        input_text = st.text_area("Enter your text here:", height=300)
-        num_sentences = st.number_input("Number of sentences for summary:", min_value=1, max_value=10, value=3)
+    st.title("📝 Text Summarization App")
+    st.markdown("---")
 
-        if st.button("Summarize"):
-            if input_text:
-                summary = summarize_text(input_text, num_sentences)
-                st.write("### Summary")
-                st.write(summary)
-            else:
-                st.warning("Please enter some text to summarize.")
+    # Create tabs for different input methods
+    tab1, tab2, tab3 = st.tabs(["Text Input", "URL Input", "Document Upload"])
 
-    elif choice == "Summarize URL":
+    with tab1:
+        st.header("Summarize Text")
+        input_text = st.text_area("Enter your text here:", height=200)
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            num_sentences = st.number_input("Number of sentences:", 1, 10, 3)
+        with col2:
+            if st.button("Summarize Text", key="text_button"):
+                if input_text:
+                    with st.spinner("Generating summary..."):
+                        summary = summarize_text(input_text, num_sentences)
+                        st.success("Summary generated!")
+                        st.markdown("### Summary")
+                        st.write(summary)
+                else:
+                    st.warning("Please enter some text to summarize.")
+
+    with tab2:
+        st.header("Summarize from URL")
         url = st.text_input("Enter URL:")
-        num_sentences = st.number_input("Number of sentences for summary:", min_value=1, max_value=10, value=3)
-
-        if st.button("Summarize"):
-            if url:
-                text_from_url = extract_text_from_url(url)
-                if text_from_url:
-                    summary = summarize_text(text_from_url, num_sentences)
-                    st.write("### Summary")
-                    st.write(summary)
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            num_sentences = st.number_input("Number of sentences:", 1, 10, 3, key="url_sentences")
+        with col2:
+            if st.button("Summarize URL", key="url_button"):
+                if url:
+                    with st.spinner("Fetching and summarizing content..."):
+                        text = extract_text_from_url(url)
+                        if text:
+                            summary = summarize_text(text, num_sentences)
+                            st.success("Summary generated!")
+                            st.markdown("### Summary")
+                            st.write(summary)
+                        else:
+                            st.error("Could not extract text from the URL.")
                 else:
-                    st.write("No text found at the provided URL.")
-            else:
-                st.warning("Please enter a URL to summarize.")
+                    st.warning("Please enter a URL.")
 
-    elif choice == "Summarize Document":
+    with tab3:
+        st.header("Summarize Document")
         uploaded_file = st.file_uploader("Upload a PDF or Word document", type=["pdf", "docx"])
-        num_sentences = st.number_input("Number of sentences for summary:", min_value=1, max_value=10, value=3)
-
-        if st.button("Summarize"):
-            if uploaded_file:
-                if uploaded_file.type == "application/pdf":
-                    text_from_document = extract_text_from_pdf(uploaded_file)
-                elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                    text_from_document = extract_text_from_docx(uploaded_file)
-
-                if text_from_document:
-                    summary = summarize_text(text_from_document, num_sentences)
-                    st.write("### Summary")
-                    st.write(summary)
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            num_sentences = st.number_input("Number of sentences:", 1, 10, 3, key="doc_sentences")
+        with col2:
+            if st.button("Summarize Document", key="doc_button"):
+                if uploaded_file:
+                    with st.spinner("Processing document..."):
+                        if uploaded_file.type == "application/pdf":
+                            text = extract_text_from_pdf(uploaded_file)
+                        else:
+                            text = extract_text_from_docx(uploaded_file)
+                        
+                        if text:
+                            summary = summarize_text(text, num_sentences)
+                            st.success("Summary generated!")
+                            st.markdown("### Summary")
+                            st.write(summary)
+                        else:
+                            st.error("Could not extract text from the document.")
                 else:
-                    st.write("No text found in the uploaded document.")
-            else:
-                st.warning("Please upload a document to summarize.")
+                    st.warning("Please upload a document.")
+
+    # Footer
+    st.markdown("---")
+    st.markdown("Made with ❤️ using Streamlit and TextBlob")
 
 if __name__ == "__main__":
     main()
